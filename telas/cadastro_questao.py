@@ -283,14 +283,6 @@ def tela_cadastro():
             modal_banca()
 
     # =====================================
-    # RESPOSTA
-    # =====================================
-
-    resposta_correta = st.text_input(
-        "Resposta Correta"
-    )
-
-    # =====================================
     # MULTIPLA ESCOLHA
     # =====================================
 
@@ -341,33 +333,71 @@ def tela_cadastro():
 
     if st.button("Salvar Questão"):
 
-        data = {
-
-            "tipo": tipo,
-
-            "enunciado": enunciado,
-
-            "materia_id":
-                materias_map[materia_nome],
-
-            "assunto_id":
-                assuntos_map[assunto_nome],
-
-            "banca_id":
-                bancas_map[banca_nome],
-
-            "resposta_correta":
-                resposta_correta
-        }
-
         try:
 
-            (
+            # =====================================
+            # DADOS QUESTÃO
+            # =====================================
+
+            data = {
+
+                "tipo": tipo,
+
+                "enunciado": enunciado,
+
+                "materia_id":
+                    materias_map[materia_nome],
+
+                "assunto_id":
+                    assuntos_map[assunto_nome],
+
+                "banca_id":
+                    bancas_map[banca_nome],
+
+                "resposta_correta":
+                    alternativa_correta
+            }
+
+            # =====================================
+            # SALVAR QUESTÃO
+            # =====================================
+
+            response = (
                 supabase
                 .table("concur_questoes")
                 .insert(data)
                 .execute()
             )
+
+            questao_id = response.data[0]["id"]
+
+            # =====================================
+            # SALVAR ALTERNATIVAS
+            # =====================================
+
+            if tipo == "multipla_escolha":
+
+                for letra, texto in alternativas:
+
+                    (
+                        supabase
+                        .table("concur_alternativas")
+                        .insert({
+
+                            "questao_id":
+                                questao_id,
+
+                            "letra":
+                                letra,
+
+                            "texto":
+                                texto,
+
+                            "correta":
+                                letra == alternativa_correta
+                        })
+                        .execute()
+                    )
 
             st.success(
                 "Questão salva com sucesso!"
