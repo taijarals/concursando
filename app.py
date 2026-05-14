@@ -4,9 +4,9 @@ from auth import login, register
 
 from components.sidebar import render_sidebar
 
-from pages.dashboard import tela_dashboard
-from pages.cadastro_questao import tela_cadastro
-from pages.resolver_questoes import tela_resolver
+from telas.dashboard import tela_dashboard
+from telas.cadastro_questao import tela_cadastro
+from telas.resolver_questoes import tela_resolver
 
 
 st.set_page_config(
