@@ -304,7 +304,7 @@ def tela_cadastro():
             st.write("")
 
             if st.form_submit_button(
-                "➕ ",
+                "➕ "
             ):
 
                 modal_assunto()
@@ -388,17 +388,15 @@ def tela_cadastro():
                 "Alternativa E"
             )
 
-            alternativa_correta = (
-                st.selectbox(
-                    "Alternativa Correta",
-                    [
-                        "A",
-                        "B",
-                        "C",
-                        "D",
-                        "E"
-                    ]
-                )
+            alternativa_correta = st.selectbox(
+                "Alternativa Correta",
+                [
+                    "A",
+                    "B",
+                    "C",
+                    "D",
+                    "E"
+                ]
             )
 
             alternativas = [
@@ -415,26 +413,30 @@ def tela_cadastro():
 
         elif tipo == "certo_errado":
 
-            alternativa_correta = (
-                st.selectbox(
-                    "Resposta Correta",
-                    [
-                        "Certo",
-                        "Errado"
-                    ]
-                )
+            st.subheader(
+                "Resposta Correta"
+            )
+
+            alternativa_correta = st.radio(
+                "Gabarito",
+                [
+                    "Certo",
+                    "Errado"
+                ]
             )
 
         # =====================================
-        # ABERTA
+        # QUESTÃO ABERTA
         # =====================================
 
         elif tipo == "aberta":
 
-            alternativa_correta = (
-                st.text_area(
-                    "Resposta Esperada"
-                )
+            st.subheader(
+                "Resposta Esperada"
+            )
+
+            alternativa_correta = st.text_area(
+                "Digite a resposta esperada"
             )
 
         # =====================================
@@ -474,6 +476,16 @@ def tela_cadastro():
                     )
 
                     return
+
+        elif tipo == "aberta":
+
+            if not alternativa_correta:
+
+                st.warning(
+                    "Informe a resposta esperada."
+                )
+
+                return
 
         try:
 
