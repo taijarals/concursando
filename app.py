@@ -67,5 +67,5 @@ else:
     elif menu == "Importar Questões":
         tela_importacao()
     
-    elif pagina == "Listar Questões":
+    elif menu == "Listar Questões":
         tela_listar_questoes()
