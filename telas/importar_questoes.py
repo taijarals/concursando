@@ -2,9 +2,7 @@ import streamlit as st
 
 from database.supabase_client import supabase
 
-from services.gemini_service import (
-    pesquisar_questoes
-)
+from services.openrouter_service import pesquisar_questoes
 
 
 # ==================================================
