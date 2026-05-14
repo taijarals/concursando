@@ -5,7 +5,7 @@ from openai import OpenAI
 from config import OPENROUTER_API_KEY
 
 qtd_questoes = "3"
-modelo_deepseek = "deepseek/deepseek-chat-v3-0324:free"
+modelo_deepseek = "deepseek/deepseek-v4-flash:free"
 
 
 # ==================================================
