@@ -4,6 +4,9 @@ from openai import OpenAI
 
 from config import OPENROUTER_API_KEY
 
+qtd_questoes = 3
+modelo_deepseek = "deepseek/deepseek-chat-v3-0324:free"
+
 
 # ==================================================
 # CLIENTE
@@ -34,7 +37,7 @@ def pesquisar_questoes(
     prompt = f"""
     Você é um especialista em concursos públicos.
 
-    Gere 10 questões REALISTAS,
+    Gere """+qtd_questoes+""" questões REALISTAS,
     similares às cobradas
     pela banca informada.
 
@@ -88,8 +91,7 @@ def pesquisar_questoes(
 
     response = client.chat.completions.create(
 
-        model=
-            "deepseek/deepseek-chat-v3-0324:free",
+        model= modelo_deepseek,
 
         messages=[
             {
