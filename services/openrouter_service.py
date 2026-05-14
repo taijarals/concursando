@@ -139,12 +139,38 @@ def pesquisar_questoes(
     # TEXTO
     # ==================================================
 
-    texto = (
-        response
-        .choices[0]
-        .message
-        .content
-    )
+    texto = None
+
+    try:
+
+        texto = (
+            response
+            .choices[0]
+            .message
+            .content
+        )
+
+    except Exception as e:
+
+        raise Exception(
+            f"Erro ao ler resposta IA: {e}"
+        )
+
+    # ==================================================
+    # VALIDAÇÃO
+    # ==================================================
+
+    if not texto:
+
+        print("\n====================")
+        print("RESPOSTA VAZIA IA")
+        print("====================")
+        print(response)
+        print("====================\n")
+
+        raise Exception(
+            "A IA retornou resposta vazia."
+        )
 
     # ==================================================
     # DEBUG
