@@ -1,32 +1,68 @@
 import streamlit as st
+
 from database.supabase_client import supabase
 
-st.title("Cadastro de Questão")
 
-enunciado = st.text_area("Enunciado")
+def tela_cadastro():
 
-tipo = st.selectbox(
-    "Tipo",
-    ["multipla_escolha", "certo_errado", "aberta"]
-)
+    st.title("➕ Cadastro de Questão")
 
-resposta_correta = st.text_input(
-    "Resposta Correta"
-)
+    # =========================
+    # ENUNCIADO
+    # =========================
 
-if st.button("Salvar"):
-
-    data = {
-        "tipo": tipo,
-        "enunciado": enunciado,
-        "resposta_correta": resposta_correta
-    }
-
-    response = (
-        supabase
-        .table("questoes")
-        .insert(data)
-        .execute()
+    enunciado = st.text_area(
+        "Enunciado"
     )
 
-    st.success("Questão salva!")
+    # =========================
+    # TIPO
+    # =========================
+
+    tipo = st.selectbox(
+        "Tipo",
+        [
+            "multipla_escolha",
+            "certo_errado",
+            "aberta"
+        ]
+    )
+
+    # =========================
+    # RESPOSTA CORRETA
+    # =========================
+
+    resposta_correta = st.text_input(
+        "Resposta Correta"
+    )
+
+    # =========================
+    # BOTÃO SALVAR
+    # =========================
+
+    if st.button("Salvar Questão"):
+
+        data = {
+            "tipo": tipo,
+            "enunciado": enunciado,
+            "resposta_correta": resposta_correta
+        }
+
+        try:
+
+            response = (
+                supabase
+                .table("concur_questoes")
+                .insert(data)
+                .execute()
+            )
+
+            st.success(
+                "Questão salva com sucesso!"
+            )
+
+        except Exception as e:
+
+            st.error(
+                f"Erro ao salvar: {e}"
+            )
