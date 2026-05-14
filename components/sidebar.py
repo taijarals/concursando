@@ -18,7 +18,8 @@ def render_sidebar():
                 "Cadastrar Banca",
                 "Cadastrar Questão",
                 "Resolver Questões",
-                "Importar Questões"
+                "Importar Questões",
+                "Listar Questões"
             ]
         )
 
