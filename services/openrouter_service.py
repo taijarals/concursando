@@ -12,7 +12,7 @@ from config import OPENROUTER_API_KEY
 qtd_questoes = 3
 
 modelo_deepseek = (
-    "deepseek/deepseek-v4-flash:free"
+    "google/gemma-4-26b-a4b-it:free"
 )
 
 
