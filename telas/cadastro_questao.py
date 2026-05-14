@@ -3,13 +3,88 @@ import streamlit as st
 from database.supabase_client import supabase
 
 
-def tela_cadastro():
+# ==================================================
+# MODAL MATÉRIA
+# ==================================================
 
-    st.title("➕ Cadastro de Questão")
+@st.dialog("📚 Nova Matéria")
+def modal_materia():
 
-    # =====================================
-    # BUSCAR DADOS AUXILIARES
-    # =====================================
+    nome = st.text_input(
+        "Nome da Matéria",
+        key="nova_materia"
+    )
+
+    if st.button(
+        "Salvar Matéria"
+    ):
+
+        try:
+
+            (
+                supabase
+                .table("concur_materias")
+                .insert({
+                    "nome": nome
+                })
+                .execute()
+            )
+
+            st.success(
+                "Matéria cadastrada!"
+            )
+
+            st.rerun()
+
+        except Exception as e:
+
+            st.error(str(e))
+
+
+# ==================================================
+# MODAL BANCA
+# ==================================================
+
+@st.dialog("🏛️ Nova Banca")
+def modal_banca():
+
+    nome = st.text_input(
+        "Nome da Banca",
+        key="nova_banca"
+    )
+
+    if st.button(
+        "Salvar Banca"
+    ):
+
+        try:
+
+            (
+                supabase
+                .table("concur_bancas")
+                .insert({
+                    "nome": nome
+                })
+                .execute()
+            )
+
+            st.success(
+                "Banca cadastrada!"
+            )
+
+            st.rerun()
+
+        except Exception as e:
+
+            st.error(str(e))
+
+
+# ==================================================
+# MODAL ASSUNTO
+# ==================================================
+
+@st.dialog("📝 Novo Assunto")
+def modal_assunto():
 
     materias = (
         supabase
@@ -18,10 +93,76 @@ def tela_cadastro():
         .execute()
     )
 
+    materias_map = {
+        item["nome"]: item["id"]
+        for item in materias.data
+    }
+
+    materia_nome = st.selectbox(
+        "Matéria",
+        list(materias_map.keys()),
+        key="modal_assunto_materia"
+    )
+
+    nome = st.text_input(
+        "Nome do Assunto",
+        key="novo_assunto"
+    )
+
+    if st.button(
+        "Salvar Assunto"
+    ):
+
+        try:
+
+            (
+                supabase
+                .table("concur_assuntos")
+                .insert({
+                    "materia_id":
+                        materias_map[materia_nome],
+
+                    "nome": nome
+                })
+                .execute()
+            )
+
+            st.success(
+                "Assunto cadastrado!"
+            )
+
+            st.rerun()
+
+        except Exception as e:
+
+            st.error(str(e))
+
+
+# ==================================================
+# TELA PRINCIPAL
+# ==================================================
+
+def tela_cadastro():
+
+    st.title("➕ Cadastro de Questão")
+
+    # =====================================
+    # BUSCAR DADOS
+    # =====================================
+
+    materias = (
+        supabase
+        .table("concur_materias")
+        .select("*")
+        .order("nome")
+        .execute()
+    )
+
     assuntos = (
         supabase
         .table("concur_assuntos")
         .select("*")
+        .order("nome")
         .execute()
     )
 
@@ -29,6 +170,7 @@ def tela_cadastro():
         supabase
         .table("concur_bancas")
         .select("*")
+        .order("nome")
         .execute()
     )
 
@@ -68,20 +210,81 @@ def tela_cadastro():
         ]
     )
 
-    materia_nome = st.selectbox(
-        "Matéria",
-        list(materias_map.keys())
-    )
+    # =====================================
+    # MATÉRIA
+    # =====================================
 
-    assunto_nome = st.selectbox(
-        "Assunto",
-        list(assuntos_map.keys())
-    )
+    col1, col2 = st.columns([10, 1])
 
-    banca_nome = st.selectbox(
-        "Banca",
-        list(bancas_map.keys())
-    )
+    with col1:
+
+        materia_nome = st.selectbox(
+            "Matéria",
+            list(materias_map.keys())
+        )
+
+    with col2:
+
+        st.write("")
+
+        if st.button(
+            "➕",
+            key="btn_materia"
+        ):
+
+            modal_materia()
+
+    # =====================================
+    # ASSUNTO
+    # =====================================
+
+    col1, col2 = st.columns([10, 1])
+
+    with col1:
+
+        assunto_nome = st.selectbox(
+            "Assunto",
+            list(assuntos_map.keys())
+        )
+
+    with col2:
+
+        st.write("")
+
+        if st.button(
+            "➕",
+            key="btn_assunto"
+        ):
+
+            modal_assunto()
+
+    # =====================================
+    # BANCA
+    # =====================================
+
+    col1, col2 = st.columns([10, 1])
+
+    with col1:
+
+        banca_nome = st.selectbox(
+            "Banca",
+            list(bancas_map.keys())
+        )
+
+    with col2:
+
+        st.write("")
+
+        if st.button(
+            "➕",
+            key="btn_banca"
+        ):
+
+            modal_banca()
+
+    # =====================================
+    # RESPOSTA
+    # =====================================
 
     resposta_correta = st.text_input(
         "Resposta Correta"
