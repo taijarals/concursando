@@ -12,6 +12,12 @@ from modal.modal_banca import modal_banca
 
 def tela_cadastro():
 
+    # ==================================================
+    # USUÁRIO LOGADO
+    # ==================================================
+
+    user = st.session_state.user
+
     st.title("➕ Cadastro de Questão")
 
     # ==================================================
@@ -353,6 +359,9 @@ def tela_cadastro():
 
                 "resposta_correta":
                     alternativa_correta,
+
+                "criado_por":
+                    user.id,
 
                 "explicacao_ia":
                     None
