@@ -1,9 +1,9 @@
 import streamlit as st
 
 from database.supabase_client import supabase
-from modals.modal_materia import modal_materia
-from modals.modal_assunto import modal_assunto
-from modals.modal_banca import modal_banca
+from modal.modal_materia import modal_materia
+from modal.modal_assunto import modal_assunto
+from modal.modal_banca import modal_banca
 
 
 # ==================================================
