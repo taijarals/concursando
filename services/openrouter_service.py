@@ -140,4 +140,14 @@ def pesquisar_questoes(
     # CONVERTER JSON
     # =====================================
 
-    return json.loads(texto)
+    try:
+
+        return json.loads(texto)
+
+    except Exception as e:
+
+        print(texto)
+
+        raise Exception(
+            f"Erro ao converter JSON: {e}"
+        )
