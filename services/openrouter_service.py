@@ -1,4 +1,7 @@
 import json
+import os
+
+from datetime import datetime
 
 from openai import OpenAI
 
@@ -11,9 +14,13 @@ from config import OPENROUTER_API_KEY
 
 qtd_questoes = 3
 
-modelo_deepseek = (
-    "google/gemma-4-26b-a4b-it:free"
+modelo_ia = (
+    "google/gemma-3-27b-it:free"
 )
+
+# outras opções:
+# "deepseek/deepseek-v4-flash:free"
+# "meta-llama/llama-3.3-70b-instruct:free"
 
 
 # ==================================================
@@ -42,18 +49,31 @@ def pesquisar_questoes(
     tipo
 ):
 
+    # ==================================================
+    # PROMPT
+    # ==================================================
+
     prompt = f"""
     Você é um especialista em concursos públicos.
 
     Gere {qtd_questoes} questões REALISTAS,
     similares às cobradas pela banca informada.
 
+    Dados:
+
+    - Instituição: {instituicao}
+    - Banca: {banca}
+    - Ano: {ano}
+    - Disciplina: {disciplina}
+    - Tipo: {tipo}
+
     IMPORTANTE:
 
-    - Retorne APENAS JSON
+    - Retorne SOMENTE JSON
     - Não use markdown
     - Não use ```json
-    - Não escreva textos fora do JSON
+    - Não escreva comentários
+    - Não escreva explicações fora do JSON
     - Retorne UMA LISTA JSON
     - NÃO envolva em {{ "questoes": [] }}
 
@@ -63,32 +83,43 @@ def pesquisar_questoes(
       {{
         "tipo": "multipla_escolha",
 
-        "enunciado": "texto da questão",
+        "enunciado":
+            "texto da questão",
 
-        "materia": "{disciplina}",
+        "materia":
+            "{disciplina}",
 
-        "assunto": "assunto",
+        "assunto":
+            "assunto",
 
-        "banca": "{banca}",
+        "banca":
+            "{banca}",
 
         "dificuldade": 3,
 
         "fonte":
             "{instituicao} {ano}",
 
-        "resposta_correta": "A",
+        "resposta_correta":
+            "A",
 
         "alternativas": [
 
           {{
             "letra": "A",
-            "texto": "texto alternativa",
+
+            "texto":
+                "texto alternativa",
+
             "correta": true
           }},
 
           {{
             "letra": "B",
-            "texto": "texto alternativa",
+
+            "texto":
+                "texto alternativa",
+
             "correta": false
           }}
 
@@ -101,10 +132,10 @@ def pesquisar_questoes(
 
     Regras:
 
+    - JSON RFC8259 válido
     - dificuldade entre 1 e 5
     - alternativas completas
     - explicações detalhadas
-    - JSON RFC8259 válido
     - escape caracteres especiais
     """
 
@@ -112,28 +143,38 @@ def pesquisar_questoes(
     # REQUEST
     # ==================================================
 
-    response = client.chat.completions.create(
+    try:
 
-        model=modelo_deepseek,
+        response = (
+            client.chat.completions.create(
 
-        messages=[
+                model=modelo_ia,
 
-            {
-                "role": "system",
+                messages=[
 
-                "content":
-                    "Você responde apenas JSON válido."
-            },
+                    {
+                        "role": "system",
 
-            {
-                "role": "user",
+                        "content":
+                            "Você responde apenas JSON válido."
+                    },
 
-                "content": prompt
-            }
-        ],
+                    {
+                        "role": "user",
 
-        temperature=0.2
-    )
+                        "content": prompt
+                    }
+                ],
+
+                temperature=0.2
+            )
+        )
+
+    except Exception as e:
+
+        raise Exception(
+            f"Erro na requisição OpenRouter: {e}"
+        )
 
     # ==================================================
     # TEXTO
@@ -143,12 +184,16 @@ def pesquisar_questoes(
 
     try:
 
-        texto = (
-            response
-            .choices[0]
-            .message
-            .content
-        )
+        if response.choices:
+
+            if response.choices[0].message:
+
+                texto = (
+                    response
+                    .choices[0]
+                    .message
+                    .content
+                )
 
     except Exception as e:
 
@@ -173,11 +218,11 @@ def pesquisar_questoes(
         )
 
     # ==================================================
-    # DEBUG
+    # DEBUG TERMINAL
     # ==================================================
 
     print("\n====================")
-    print("RESPOSTA IA:")
+    print("RESPOSTA IA")
     print("====================")
     print(texto)
     print("====================\n")
@@ -209,6 +254,43 @@ def pesquisar_questoes(
     texto = texto.strip()
 
     # ==================================================
+    # CRIAR PASTA OUTPUTS
+    # ==================================================
+
+    os.makedirs(
+        "outputs",
+        exist_ok=True
+    )
+
+    timestamp = datetime.now().strftime(
+        "%Y%m%d_%H%M%S"
+    )
+
+    # ==================================================
+    # SALVAR PROMPT
+    # ==================================================
+
+    with open(
+        f"outputs/prompt_{timestamp}.txt",
+        "w",
+        encoding="utf-8"
+    ) as f:
+
+        f.write(prompt)
+
+    # ==================================================
+    # SALVAR RESPONSE RAW
+    # ==================================================
+
+    with open(
+        f"outputs/response_{timestamp}.txt",
+        "w",
+        encoding="utf-8"
+    ) as f:
+
+        f.write(str(texto))
+
+    # ==================================================
     # CONVERTER JSON
     # ==================================================
 
@@ -217,7 +299,7 @@ def pesquisar_questoes(
         data = json.loads(texto)
 
         # =====================================
-        # CASO VENHA:
+        # CASO:
         # { "questoes": [...] }
         # =====================================
 
@@ -228,12 +310,25 @@ def pesquisar_questoes(
                 return data["questoes"]
 
         # =====================================
-        # CASO JÁ VENHA LISTA
+        # CASO:
+        # LISTA NORMAL
         # =====================================
 
         return data
 
     except Exception as e:
+
+        # =====================================
+        # SALVAR ERRO JSON
+        # =====================================
+
+        with open(
+            f"outputs/error_{timestamp}.txt",
+            "w",
+            encoding="utf-8"
+        ) as f:
+
+            f.write(str(texto))
 
         print("\n====================")
         print("ERRO JSON")
