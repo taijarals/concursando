@@ -32,263 +32,260 @@ def tela_cadastro():
     }
 
     # ==================================================
-    # FORMULÁRIO
+    # ENUNCIADO
     # ==================================================
 
-    with st.form("form_cadastro_questao"):
+    enunciado = st.text_area(
+        "Enunciado"
+    )
 
-        # =====================================
-        # ENUNCIADO
-        # =====================================
+    # ==================================================
+    # TIPO
+    # ==================================================
 
-        enunciado = st.text_area(
-            "Enunciado"
+    tipo = st.selectbox(
+        "Tipo",
+        [
+            "multipla_escolha",
+            "certo_errado",
+            "aberta"
+        ]
+    )
+
+    # ==================================================
+    # DIFICULDADE
+    # ==================================================
+
+    dificuldade = st.selectbox(
+        "Dificuldade",
+        [
+            1,
+            2,
+            3,
+            4,
+            5
+        ]
+    )
+
+    # ==================================================
+    # MATÉRIA
+    # ==================================================
+
+    col1, col2 = st.columns([10, 1])
+
+    with col1:
+
+        materia_nome = st.selectbox(
+            "Matéria",
+            list(materias_map.keys())
+            if materias_map else []
         )
 
-        # =====================================
-        # TIPO
-        # =====================================
+    with col2:
 
-        tipo = st.selectbox(
-            "Tipo",
-            [
-                "multipla_escolha",
-                "certo_errado",
-                "aberta"
-            ]
+        st.write("")
+
+        if st.button(
+            "➕",
+            key="btn_materia"
+        ):
+
+            modal_materia()
+
+    # ==================================================
+    # BUSCAR ASSUNTOS FILTRADOS
+    # ==================================================
+
+    materia_id = None
+
+    assuntos_map = {}
+
+    if materia_nome:
+
+        materia_id = (
+            materias_map[materia_nome]
         )
 
-        # =====================================
-        # DIFICULDADE
-        # =====================================
-
-        dificuldade = st.selectbox(
-            "Dificuldade",
-            [
-                1,
-                2,
-                3,
-                4,
-                5
-            ]
-        )
-
-        # =====================================
-        # MATÉRIA
-        # =====================================
-
-        col1, col2 = st.columns([10, 1])
-
-        with col1:
-
-            materia_nome = st.selectbox(
-                "Matéria",
-                list(materias_map.keys())
-                if materias_map else []
-            )
-
-        with col2:
-
-            st.write("")
-
-            if st.form_submit_button(
-                "➕"
-            ):
-
-                modal_materia()
-
-        # =====================================
-        # BUSCAR ASSUNTOS FILTRADOS
-        # =====================================
-
-        materia_id = None
-
-        assuntos_map = {}
-
-        if materia_nome:
-
-            materia_id = (
-                materias_map[materia_nome]
-            )
-
-            assuntos = (
-                supabase
-                .table("concur_assuntos")
-                .select("*")
-                .eq(
-                    "materia_id",
-                    materia_id
-                )
-                .order("nome")
-                .execute()
-            )
-
-            assuntos_map = {
-                item["nome"]: item["id"]
-                for item in assuntos.data
-            }
-
-        # =====================================
-        # ASSUNTO
-        # =====================================
-
-        col1, col2 = st.columns([10, 1])
-
-        with col1:
-
-            assunto_nome = st.selectbox(
-                "Assunto",
-                list(assuntos_map.keys())
-                if assuntos_map else []
-            )
-
-        with col2:
-
-            st.write("")
-
-            if st.form_submit_button(
-                "➕ "
-            ):
-
-                modal_assunto()
-
-        # =====================================
-        # BUSCAR BANCAS
-        # =====================================
-
-        bancas = (
+        assuntos = (
             supabase
-            .table("concur_bancas")
+            .table("concur_assuntos")
             .select("*")
+            .eq(
+                "materia_id",
+                materia_id
+            )
             .order("nome")
             .execute()
         )
 
-        bancas_map = {
+        assuntos_map = {
             item["nome"]: item["id"]
-            for item in bancas.data
+            for item in assuntos.data
         }
 
-        # =====================================
-        # BANCA
-        # =====================================
+    # ==================================================
+    # ASSUNTO
+    # ==================================================
 
-        col1, col2 = st.columns([10, 1])
+    col1, col2 = st.columns([10, 1])
 
-        with col1:
+    with col1:
 
-            banca_nome = st.selectbox(
-                "Banca",
-                list(bancas_map.keys())
-                if bancas_map else []
-            )
-
-        with col2:
-
-            st.write("")
-
-            if st.form_submit_button(
-                "➕  "
-            ):
-
-                modal_banca()
-
-        # =====================================
-        # VARIÁVEIS
-        # =====================================
-
-        alternativa_correta = None
-
-        alternativas = []
-
-        # =====================================
-        # MÚLTIPLA ESCOLHA
-        # =====================================
-
-        if tipo == "multipla_escolha":
-
-            st.subheader(
-                "Alternativas"
-            )
-
-            letra_a = st.text_input(
-                "Alternativa A"
-            )
-
-            letra_b = st.text_input(
-                "Alternativa B"
-            )
-
-            letra_c = st.text_input(
-                "Alternativa C"
-            )
-
-            letra_d = st.text_input(
-                "Alternativa D"
-            )
-
-            letra_e = st.text_input(
-                "Alternativa E"
-            )
-
-            alternativa_correta = st.selectbox(
-                "Alternativa Correta",
-                [
-                    "A",
-                    "B",
-                    "C",
-                    "D",
-                    "E"
-                ]
-            )
-
-            alternativas = [
-                ("A", letra_a),
-                ("B", letra_b),
-                ("C", letra_c),
-                ("D", letra_d),
-                ("E", letra_e)
-            ]
-
-        # =====================================
-        # CERTO / ERRADO
-        # =====================================
-
-        elif tipo == "certo_errado":
-
-            st.subheader(
-                "Resposta Correta"
-            )
-
-            alternativa_correta = st.radio(
-                "Gabarito",
-                [
-                    "Certo",
-                    "Errado"
-                ]
-            )
-
-        # =====================================
-        # QUESTÃO ABERTA
-        # =====================================
-
-        elif tipo == "aberta":
-
-            st.subheader(
-                "Resposta Esperada"
-            )
-
-            alternativa_correta = st.text_area(
-                "Digite a resposta esperada"
-            )
-
-        # =====================================
-        # BOTÃO SALVAR
-        # =====================================
-
-        salvar = st.form_submit_button(
-            "Salvar Questão"
+        assunto_nome = st.selectbox(
+            "Assunto",
+            list(assuntos_map.keys())
+            if assuntos_map else []
         )
+
+    with col2:
+
+        st.write("")
+
+        if st.button(
+            "➕",
+            key="btn_assunto"
+        ):
+
+            modal_assunto()
+
+    # ==================================================
+    # BUSCAR BANCAS
+    # ==================================================
+
+    bancas = (
+        supabase
+        .table("concur_bancas")
+        .select("*")
+        .order("nome")
+        .execute()
+    )
+
+    bancas_map = {
+        item["nome"]: item["id"]
+        for item in bancas.data
+    }
+
+    # ==================================================
+    # BANCA
+    # ==================================================
+
+    col1, col2 = st.columns([10, 1])
+
+    with col1:
+
+        banca_nome = st.selectbox(
+            "Banca",
+            list(bancas_map.keys())
+            if bancas_map else []
+        )
+
+    with col2:
+
+        st.write("")
+
+        if st.button(
+            "➕",
+            key="btn_banca"
+        ):
+
+            modal_banca()
+
+    # ==================================================
+    # VARIÁVEIS
+    # ==================================================
+
+    alternativa_correta = None
+
+    alternativas = []
+
+    # ==================================================
+    # MÚLTIPLA ESCOLHA
+    # ==================================================
+
+    if tipo == "multipla_escolha":
+
+        st.subheader(
+            "Alternativas"
+        )
+
+        letra_a = st.text_input(
+            "Alternativa A"
+        )
+
+        letra_b = st.text_input(
+            "Alternativa B"
+        )
+
+        letra_c = st.text_input(
+            "Alternativa C"
+        )
+
+        letra_d = st.text_input(
+            "Alternativa D"
+        )
+
+        letra_e = st.text_input(
+            "Alternativa E"
+        )
+
+        alternativa_correta = st.selectbox(
+            "Alternativa Correta",
+            [
+                "A",
+                "B",
+                "C",
+                "D",
+                "E"
+            ]
+        )
+
+        alternativas = [
+            ("A", letra_a),
+            ("B", letra_b),
+            ("C", letra_c),
+            ("D", letra_d),
+            ("E", letra_e)
+        ]
+
+    # ==================================================
+    # CERTO / ERRADO
+    # ==================================================
+
+    elif tipo == "certo_errado":
+
+        st.subheader(
+            "Resposta Correta"
+        )
+
+        alternativa_correta = st.radio(
+            "Gabarito",
+            [
+                "Certo",
+                "Errado"
+            ]
+        )
+
+    # ==================================================
+    # QUESTÃO ABERTA
+    # ==================================================
+
+    elif tipo == "aberta":
+
+        st.subheader(
+            "Resposta Esperada"
+        )
+
+        alternativa_correta = st.text_area(
+            "Digite a resposta esperada"
+        )
+
+    # ==================================================
+    # BOTÃO SALVAR
+    # ==================================================
+
+    salvar = st.button(
+        "Salvar Questão"
+    )
 
     # ==================================================
     # SALVAR QUESTÃO
