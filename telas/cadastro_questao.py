@@ -19,6 +19,14 @@ def modal_materia():
         "Salvar Matéria"
     ):
 
+        if not nome:
+
+            st.warning(
+                "Informe o nome da matéria."
+            )
+
+            return
+
         try:
 
             (
@@ -57,6 +65,14 @@ def modal_banca():
         "Salvar Banca"
     ):
 
+        if not nome:
+
+            st.warning(
+                "Informe o nome da banca."
+            )
+
+            return
+
         try:
 
             (
@@ -90,6 +106,7 @@ def modal_assunto():
         supabase
         .table("concur_materias")
         .select("*")
+        .order("nome")
         .execute()
     )
 
@@ -100,7 +117,7 @@ def modal_assunto():
 
     materia_nome = st.selectbox(
         "Matéria",
-        list(materias_map.keys()),
+        list(materias_map.keys()) if materias_map else [],
         key="modal_assunto_materia"
     )
 
@@ -112,6 +129,14 @@ def modal_assunto():
     if st.button(
         "Salvar Assunto"
     ):
+
+        if not nome:
+
+            st.warning(
+                "Informe o nome do assunto."
+            )
+
+            return
 
         try:
 
@@ -146,9 +171,9 @@ def tela_cadastro():
 
     st.title("➕ Cadastro de Questão")
 
-    # =====================================
-    # BUSCAR DADOS
-    # =====================================
+    # ==================================================
+    # BUSCAR MATÉRIAS
+    # ==================================================
 
     materias = (
         supabase
@@ -158,180 +183,297 @@ def tela_cadastro():
         .execute()
     )
 
-    assuntos = (
-        supabase
-        .table("concur_assuntos")
-        .select("*")
-        .order("nome")
-        .execute()
-    )
-
-    bancas = (
-        supabase
-        .table("concur_bancas")
-        .select("*")
-        .order("nome")
-        .execute()
-    )
-
-    # =====================================
-    # MAPAS
-    # =====================================
-
     materias_map = {
         item["nome"]: item["id"]
         for item in materias.data
     }
 
-    assuntos_map = {
-        item["nome"]: item["id"]
-        for item in assuntos.data
-    }
-
-    bancas_map = {
-        item["nome"]: item["id"]
-        for item in bancas.data
-    }
-
-    # =====================================
+    # ==================================================
     # FORMULÁRIO
-    # =====================================
+    # ==================================================
 
-    enunciado = st.text_area(
-        "Enunciado"
-    )
+    with st.form("form_cadastro_questao"):
 
-    tipo = st.selectbox(
-        "Tipo",
-        [
-            "multipla_escolha",
-            "certo_errado",
-            "aberta"
-        ]
-    )
+        # =====================================
+        # ENUNCIADO
+        # =====================================
 
-    # =====================================
-    # MATÉRIA
-    # =====================================
-
-    col1, col2 = st.columns([10, 1])
-
-    with col1:
-
-        materia_nome = st.selectbox(
-            "Matéria",
-            list(materias_map.keys())
+        enunciado = st.text_area(
+            "Enunciado"
         )
 
-    with col2:
+        # =====================================
+        # TIPO
+        # =====================================
 
-        st.write("")
-
-        if st.button(
-            "➕",
-            key="btn_materia"
-        ):
-
-            modal_materia()
-
-    # =====================================
-    # ASSUNTO
-    # =====================================
-
-    col1, col2 = st.columns([10, 1])
-
-    with col1:
-
-        assunto_nome = st.selectbox(
-            "Assunto",
-            list(assuntos_map.keys())
+        tipo = st.selectbox(
+            "Tipo",
+            [
+                "multipla_escolha",
+                "certo_errado",
+                "aberta"
+            ]
         )
 
-    with col2:
+        # =====================================
+        # DIFICULDADE
+        # =====================================
 
-        st.write("")
-
-        if st.button(
-            "➕",
-            key="btn_assunto"
-        ):
-
-            modal_assunto()
-
-    # =====================================
-    # BANCA
-    # =====================================
-
-    col1, col2 = st.columns([10, 1])
-
-    with col1:
-
-        banca_nome = st.selectbox(
-            "Banca",
-            list(bancas_map.keys())
+        dificuldade = st.selectbox(
+            "Dificuldade",
+            [
+                1,
+                2,
+                3,
+                4,
+                5
+            ]
         )
 
-    with col2:
+        # =====================================
+        # MATÉRIA
+        # =====================================
 
-        st.write("")
+        col1, col2 = st.columns([10, 1])
 
-        if st.button(
-            "➕",
-            key="btn_banca"
-        ):
+        with col1:
 
-            modal_banca()
+            materia_nome = st.selectbox(
+                "Matéria",
+                list(materias_map.keys())
+                if materias_map else []
+            )
 
-    # =====================================
-    # MULTIPLA ESCOLHA
-    # =====================================
+        with col2:
 
-    alternativas = []
+            st.write("")
 
-    alternativa_correta = None
+            if st.form_submit_button(
+                "➕"
+            ):
 
-    if tipo == "multipla_escolha":
+                modal_materia()
 
-        st.subheader("Alternativas")
+        # =====================================
+        # BUSCAR ASSUNTOS FILTRADOS
+        # =====================================
 
-        letra_a = st.text_input(
-            "Alternativa A"
+        materia_id = None
+
+        assuntos_map = {}
+
+        if materia_nome:
+
+            materia_id = (
+                materias_map[materia_nome]
+            )
+
+            assuntos = (
+                supabase
+                .table("concur_assuntos")
+                .select("*")
+                .eq(
+                    "materia_id",
+                    materia_id
+                )
+                .order("nome")
+                .execute()
+            )
+
+            assuntos_map = {
+                item["nome"]: item["id"]
+                for item in assuntos.data
+            }
+
+        # =====================================
+        # ASSUNTO
+        # =====================================
+
+        col1, col2 = st.columns([10, 1])
+
+        with col1:
+
+            assunto_nome = st.selectbox(
+                "Assunto",
+                list(assuntos_map.keys())
+                if assuntos_map else []
+            )
+
+        with col2:
+
+            st.write("")
+
+            if st.form_submit_button(
+                "➕ ",
+            ):
+
+                modal_assunto()
+
+        # =====================================
+        # BUSCAR BANCAS
+        # =====================================
+
+        bancas = (
+            supabase
+            .table("concur_bancas")
+            .select("*")
+            .order("nome")
+            .execute()
         )
 
-        letra_b = st.text_input(
-            "Alternativa B"
+        bancas_map = {
+            item["nome"]: item["id"]
+            for item in bancas.data
+        }
+
+        # =====================================
+        # BANCA
+        # =====================================
+
+        col1, col2 = st.columns([10, 1])
+
+        with col1:
+
+            banca_nome = st.selectbox(
+                "Banca",
+                list(bancas_map.keys())
+                if bancas_map else []
+            )
+
+        with col2:
+
+            st.write("")
+
+            if st.form_submit_button(
+                "➕  "
+            ):
+
+                modal_banca()
+
+        # =====================================
+        # VARIÁVEIS
+        # =====================================
+
+        alternativa_correta = None
+
+        alternativas = []
+
+        # =====================================
+        # MÚLTIPLA ESCOLHA
+        # =====================================
+
+        if tipo == "multipla_escolha":
+
+            st.subheader(
+                "Alternativas"
+            )
+
+            letra_a = st.text_input(
+                "Alternativa A"
+            )
+
+            letra_b = st.text_input(
+                "Alternativa B"
+            )
+
+            letra_c = st.text_input(
+                "Alternativa C"
+            )
+
+            letra_d = st.text_input(
+                "Alternativa D"
+            )
+
+            letra_e = st.text_input(
+                "Alternativa E"
+            )
+
+            alternativa_correta = (
+                st.selectbox(
+                    "Alternativa Correta",
+                    [
+                        "A",
+                        "B",
+                        "C",
+                        "D",
+                        "E"
+                    ]
+                )
+            )
+
+            alternativas = [
+                ("A", letra_a),
+                ("B", letra_b),
+                ("C", letra_c),
+                ("D", letra_d),
+                ("E", letra_e)
+            ]
+
+        # =====================================
+        # CERTO / ERRADO
+        # =====================================
+
+        elif tipo == "certo_errado":
+
+            alternativa_correta = (
+                st.selectbox(
+                    "Resposta Correta",
+                    [
+                        "Certo",
+                        "Errado"
+                    ]
+                )
+            )
+
+        # =====================================
+        # ABERTA
+        # =====================================
+
+        elif tipo == "aberta":
+
+            alternativa_correta = (
+                st.text_area(
+                    "Resposta Esperada"
+                )
+            )
+
+        # =====================================
+        # BOTÃO SALVAR
+        # =====================================
+
+        salvar = st.form_submit_button(
+            "Salvar Questão"
         )
 
-        letra_c = st.text_input(
-            "Alternativa C"
-        )
+    # ==================================================
+    # SALVAR QUESTÃO
+    # ==================================================
 
-        letra_d = st.text_input(
-            "Alternativa D"
-        )
+    if salvar:
 
-        letra_e = st.text_input(
-            "Alternativa E"
-        )
+        # =====================================
+        # VALIDAÇÕES
+        # =====================================
 
-        alternativa_correta = st.selectbox(
-            "Alternativa Correta",
-            ["A", "B", "C", "D", "E"]
-        )
+        if not enunciado:
 
-        alternativas = [
-            ("A", letra_a),
-            ("B", letra_b),
-            ("C", letra_c),
-            ("D", letra_d),
-            ("E", letra_e)
-        ]
+            st.warning(
+                "Informe o enunciado."
+            )
 
-    # =====================================
-    # SALVAR
-    # =====================================
+            return
 
-    if st.button("Salvar Questão"):
+        if tipo == "multipla_escolha":
+
+            for letra, texto in alternativas:
+
+                if not texto:
+
+                    st.warning(
+                        f"Informe a alternativa {letra}"
+                    )
+
+                    return
 
         try:
 
@@ -354,8 +496,14 @@ def tela_cadastro():
                 "banca_id":
                     bancas_map[banca_nome],
 
+                "dificuldade":
+                    dificuldade,
+
                 "resposta_correta":
-                    alternativa_correta
+                    alternativa_correta,
+
+                "explicacao_ia":
+                    None
             }
 
             # =====================================
@@ -369,7 +517,9 @@ def tela_cadastro():
                 .execute()
             )
 
-            questao_id = response.data[0]["id"]
+            questao_id = (
+                response.data[0]["id"]
+            )
 
             # =====================================
             # SALVAR ALTERNATIVAS
@@ -381,7 +531,9 @@ def tela_cadastro():
 
                     (
                         supabase
-                        .table("concur_alternativas")
+                        .table(
+                            "concur_alternativas"
+                        )
                         .insert({
 
                             "questao_id":
@@ -394,7 +546,8 @@ def tela_cadastro():
                                 texto,
 
                             "correta":
-                                letra == alternativa_correta
+                                letra ==
+                                alternativa_correta
                         })
                         .execute()
                     )
@@ -402,6 +555,8 @@ def tela_cadastro():
             st.success(
                 "Questão salva com sucesso!"
             )
+
+            st.rerun()
 
         except Exception as e:
 
