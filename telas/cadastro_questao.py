@@ -291,6 +291,51 @@ def tela_cadastro():
     )
 
     # =====================================
+    # MULTIPLA ESCOLHA
+    # =====================================
+
+    alternativas = []
+
+    alternativa_correta = None
+
+    if tipo == "multipla_escolha":
+
+        st.subheader("Alternativas")
+
+        letra_a = st.text_input(
+            "Alternativa A"
+        )
+
+        letra_b = st.text_input(
+            "Alternativa B"
+        )
+
+        letra_c = st.text_input(
+            "Alternativa C"
+        )
+
+        letra_d = st.text_input(
+            "Alternativa D"
+        )
+
+        letra_e = st.text_input(
+            "Alternativa E"
+        )
+
+        alternativa_correta = st.selectbox(
+            "Alternativa Correta",
+            ["A", "B", "C", "D", "E"]
+        )
+
+        alternativas = [
+            ("A", letra_a),
+            ("B", letra_b),
+            ("C", letra_c),
+            ("D", letra_d),
+            ("E", letra_e)
+        ]
+
+    # =====================================
     # SALVAR
     # =====================================
 
