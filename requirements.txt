@@ -2,5 +2,6 @@ streamlit
 supabase
 python-dotenv
 openai
+google-generativeai
 pandas
 plotly
