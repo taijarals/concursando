@@ -86,21 +86,31 @@ def pesquisar_questoes(
     - dificuldade de 1 a 5
     """
 
-    response = (
-        client.chat.completions.create(
+    response = client.chat.completions.create(
 
-            model="deepseek/deepseek-v4-flash:free",
+        model=
+            "deepseek/deepseek-chat-v3-0324:free",
 
-            messages=[
-                {
-                    "role": "user",
+        messages=[
+            {
+                "role": "system",
 
-                    "content": prompt
-                }
-            ],
+                "content":
+                    "Você retorna apenas JSON válido."
+            },
 
-            temperature=0.7
-        )
+            {
+                "role": "user",
+
+                "content": prompt
+            }
+        ],
+
+        temperature=0.3,
+
+        response_format={
+            "type": "json_object"
+        }
     )
 
     texto = (
