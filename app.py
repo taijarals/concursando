@@ -2,10 +2,21 @@ import streamlit as st
 
 from auth import login, register
 
+from pages.cadastro_questao import tela_cadastro
+from pages.resolver_questoes import tela_resolver
+from pages.dashboard import tela_dashboard
+from pages.historico import tela_historico
+
+
 st.set_page_config(
-    page_title="lorem ipsum",
+    page_title="Concurso AI",
     layout="wide"
 )
+
+
+# =========================
+# LOGIN
+# =========================
 
 if "user" not in st.session_state:
 
@@ -20,19 +31,55 @@ if "user" not in st.session_state:
     with aba2:
         register()
 
+# =========================
+# APP
+# =========================
+
 else:
 
-    st.sidebar.success(
-        f"Logado como: "
-        f"{st.session_state['user'].email}"
-    )
+    # =========================
+    # SIDEBAR
+    # =========================
 
-    if st.sidebar.button("Logout"):
+    with st.sidebar:
 
-        del st.session_state["user"]
+        st.title("📚 Concurso AI")
 
-        st.rerun()
+        st.success(
+            f"Usuário:\n"
+            f"{st.session_state['user'].email}"
+        )
 
-    st.title("📚 Concurso AI")
+        menu = st.radio(
+            "Menu",
+            [
+                "Resolver Questões",
+                "Cadastrar Questão",
+                "Dashboard",
+                "Histórico"
+            ]
+        )
 
-    st.write("Sistema carregado!")
+        st.divider()
+
+        if st.button("Logout"):
+
+            del st.session_state["user"]
+
+            st.rerun()
+
+    # =========================
+    # ROTAS
+    # =========================
+
+    if menu == "Resolver Questões":
+        tela_resolver()
+
+    elif menu == "Cadastrar Questão":
+        tela_cadastro()
+
+    elif menu == "Dashboard":
+        tela_dashboard()
+
+    elif menu == "Histórico":
+        tela_historico()
