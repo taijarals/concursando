@@ -4,8 +4,16 @@ from openai import OpenAI
 
 from config import OPENROUTER_API_KEY
 
-qtd_questoes = "3"
-modelo_deepseek = "deepseek/deepseek-v4-flash:free"
+
+# ==================================================
+# CONFIG
+# ==================================================
+
+qtd_questoes = 3
+
+modelo_deepseek = (
+    "deepseek/deepseek-v4-flash:free"
+)
 
 
 # ==================================================
@@ -37,19 +45,25 @@ def pesquisar_questoes(
     prompt = f"""
     Você é um especialista em concursos públicos.
 
-    Gere """+qtd_questoes+""" questões REALISTAS,
-    similares às cobradas
-    pela banca informada.
+    Gere {qtd_questoes} questões REALISTAS,
+    similares às cobradas pela banca informada.
 
-    Retorne APENAS JSON válido.
+    IMPORTANTE:
 
-    Estrutura:
+    - Retorne APENAS JSON
+    - Não use markdown
+    - Não use ```json
+    - Não escreva textos fora do JSON
+    - Retorne UMA LISTA JSON
+    - NÃO envolva em {{ "questoes": [] }}
+
+    Estrutura esperada:
 
     [
       {{
         "tipo": "multipla_escolha",
 
-        "enunciado": "texto",
+        "enunciado": "texto da questão",
 
         "materia": "{disciplina}",
 
@@ -68,8 +82,14 @@ def pesquisar_questoes(
 
           {{
             "letra": "A",
-            "texto": "texto",
+            "texto": "texto alternativa",
             "correta": true
+          }},
+
+          {{
+            "letra": "B",
+            "texto": "texto alternativa",
+            "correta": false
           }}
 
         ],
@@ -81,24 +101,28 @@ def pesquisar_questoes(
 
     Regras:
 
-    - retornar SOMENTE JSON
-    - não usar markdown
-    - não usar ```json
+    - dificuldade entre 1 e 5
     - alternativas completas
     - explicações detalhadas
-    - dificuldade de 1 a 5
+    - JSON RFC8259 válido
+    - escape caracteres especiais
     """
+
+    # ==================================================
+    # REQUEST
+    # ==================================================
 
     response = client.chat.completions.create(
 
-        model= modelo_deepseek,
+        model=modelo_deepseek,
 
         messages=[
+
             {
                 "role": "system",
 
                 "content":
-                    "Você retorna apenas JSON válido."
+                    "Você responde apenas JSON válido."
             },
 
             {
@@ -108,12 +132,12 @@ def pesquisar_questoes(
             }
         ],
 
-        temperature=0.3,
-
-        response_format={
-            "type": "json_object"
-        }
+        temperature=0.2
     )
+
+    # ==================================================
+    # TEXTO
+    # ==================================================
 
     texto = (
         response
@@ -122,33 +146,74 @@ def pesquisar_questoes(
         .content
     )
 
-    # =====================================
+    # ==================================================
+    # DEBUG
+    # ==================================================
+
+    print("\n====================")
+    print("RESPOSTA IA:")
+    print("====================")
+    print(texto)
+    print("====================\n")
+
+    # ==================================================
     # LIMPEZA
-    # =====================================
-
-    texto = texto.replace(
-        "```json",
-        ""
-    )
-
-    texto = texto.replace(
-        "```",
-        ""
-    )
+    # ==================================================
 
     texto = texto.strip()
 
-    # =====================================
+    if texto.startswith("```json"):
+
+        texto = texto.replace(
+            "```json",
+            ""
+        )
+
+    if texto.startswith("```"):
+
+        texto = texto.replace(
+            "```",
+            ""
+        )
+
+    if texto.endswith("```"):
+
+        texto = texto[:-3]
+
+    texto = texto.strip()
+
+    # ==================================================
     # CONVERTER JSON
-    # =====================================
+    # ==================================================
 
     try:
 
-        return json.loads(texto)
+        data = json.loads(texto)
+
+        # =====================================
+        # CASO VENHA:
+        # { "questoes": [...] }
+        # =====================================
+
+        if isinstance(data, dict):
+
+            if "questoes" in data:
+
+                return data["questoes"]
+
+        # =====================================
+        # CASO JÁ VENHA LISTA
+        # =====================================
+
+        return data
 
     except Exception as e:
 
+        print("\n====================")
+        print("ERRO JSON")
+        print("====================")
         print(texto)
+        print("====================\n")
 
         raise Exception(
             f"Erro ao converter JSON: {e}"
