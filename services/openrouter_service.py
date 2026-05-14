@@ -1,5 +1,6 @@
 import json
 import os
+import re
 
 from datetime import datetime
 
@@ -14,10 +15,11 @@ from config import OPENROUTER_API_KEY
 
 qtd_questoes = 3
 
-modelo_ia = ("deepseek/deepseek-v4-flash:free")
+modelo_ia = (
+    "deepseek/deepseek-v4-flash:free"
+)
 
 # outras opções:
-# "deepseek/deepseek-v4-flash:free"
 # "google/gemma-3-27b-it:free"
 # "meta-llama/llama-3.3-70b-instruct:free"
 
@@ -37,6 +39,37 @@ client = OpenAI(
 
 
 # ==================================================
+# FUNÇÃO AUXILIAR
+# ==================================================
+
+def salvar_debug(
+    nome_arquivo,
+    conteudo
+):
+
+    try:
+
+        os.makedirs(
+            "outputs",
+            exist_ok=True
+        )
+
+        with open(
+            nome_arquivo,
+            "w",
+            encoding="utf-8"
+        ) as f:
+
+            f.write(str(conteudo))
+
+    except Exception as e:
+
+        print(
+            f"Erro ao salvar arquivo debug: {e}"
+        )
+
+
+# ==================================================
 # PESQUISAR QUESTÕES
 # ==================================================
 
@@ -47,6 +80,14 @@ def pesquisar_questoes(
     disciplina,
     tipo
 ):
+
+    # ==================================================
+    # TIMESTAMP
+    # ==================================================
+
+    timestamp = datetime.now().strftime(
+        "%Y%m%d_%H%M%S"
+    )
 
     # ==================================================
     # PROMPT
@@ -139,7 +180,16 @@ def pesquisar_questoes(
     """
 
     # ==================================================
-    # REQUEST
+    # SALVAR PROMPT
+    # ==================================================
+
+    salvar_debug(
+        f"outputs/prompt_{timestamp}.txt",
+        prompt
+    )
+
+    # ==================================================
+    # REQUEST IA
     # ==================================================
 
     try:
@@ -176,7 +226,7 @@ def pesquisar_questoes(
         )
 
     # ==================================================
-    # TEXTO
+    # EXTRAIR TEXTO
     # ==================================================
 
     texto = None
@@ -206,11 +256,10 @@ def pesquisar_questoes(
 
     if not texto:
 
-        print("\n====================")
-        print("RESPOSTA VAZIA IA")
-        print("====================")
-        print(response)
-        print("====================\n")
+        salvar_debug(
+            f"outputs/response_vazia_{timestamp}.txt",
+            str(response)
+        )
 
         raise Exception(
             "A IA retornou resposta vazia."
@@ -227,67 +276,51 @@ def pesquisar_questoes(
     print("====================\n")
 
     # ==================================================
+    # SALVAR RESPONSE RAW
+    # ==================================================
+
+    salvar_debug(
+        f"outputs/response_raw_{timestamp}.txt",
+        texto
+    )
+
+    # ==================================================
     # LIMPEZA
     # ==================================================
 
     texto = texto.strip()
 
-    if texto.startswith("```json"):
+    # remove markdown
+    texto = texto.replace(
+        "```json",
+        ""
+    )
 
-        texto = texto.replace(
-            "```json",
-            ""
-        )
-
-    if texto.startswith("```"):
-
-        texto = texto.replace(
-            "```",
-            ""
-        )
-
-    if texto.endswith("```"):
-
-        texto = texto[:-3]
+    texto = texto.replace(
+        "```",
+        ""
+    )
 
     texto = texto.strip()
 
     # ==================================================
-    # CRIAR PASTA OUTPUTS
+    # REMOVER CONTROLES INVÁLIDOS
     # ==================================================
 
-    os.makedirs(
-        "outputs",
-        exist_ok=True
-    )
-
-    timestamp = datetime.now().strftime(
-        "%Y%m%d_%H%M%S"
+    texto_limpo = re.sub(
+        r'[\x00-\x1F\x7F]',
+        '',
+        texto
     )
 
     # ==================================================
-    # SALVAR PROMPT
+    # SALVAR TEXTO LIMPO
     # ==================================================
 
-    with open(
-        f"outputs/prompt_{timestamp}.txt",
-        "w",
-        encoding="utf-8"
-    ) as f:
-
-        f.write(prompt)
-
-    # ==================================================
-    # SALVAR RESPONSE RAW
-    # ==================================================
-
-    with open(
-        f"outputs/response_{timestamp}.txt",
-        "w",
-        encoding="utf-8"
-    ) as f:
-
-        f.write(str(texto))
+    salvar_debug(
+        f"outputs/response_limpo_{timestamp}.txt",
+        texto_limpo
+    )
 
     # ==================================================
     # CONVERTER JSON
@@ -295,7 +328,9 @@ def pesquisar_questoes(
 
     try:
 
-        data = json.loads(texto)
+        data = json.loads(
+            texto_limpo
+        )
 
         # =====================================
         # CASO:
@@ -321,18 +356,15 @@ def pesquisar_questoes(
         # SALVAR ERRO JSON
         # =====================================
 
-        with open(
-            f"outputs/error_{timestamp}.txt",
-            "w",
-            encoding="utf-8"
-        ) as f:
-
-            f.write(str(texto))
+        salvar_debug(
+            f"outputs/error_json_{timestamp}.txt",
+            texto_limpo
+        )
 
         print("\n====================")
         print("ERRO JSON")
         print("====================")
-        print(texto)
+        print(texto_limpo)
         print("====================\n")
 
         raise Exception(
