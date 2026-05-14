@@ -10,6 +10,7 @@ from telas.resolver_questoes import tela_resolver
 from telas.cadastro_materia import tela_cadastro_materia
 from telas.cadastro_assunto import tela_cadastro_assunto
 from telas.cadastro_banca import tela_cadastro_banca
+from telas.importar_questoes import tela_importacao
 
 
 st.set_page_config(
@@ -61,3 +62,6 @@ else:
 
     elif menu == "Cadastrar Banca":
         tela_cadastro_banca()
+        
+    elif menu == "Importar Questões":
+        tela_importacao()
