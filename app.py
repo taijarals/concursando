@@ -7,6 +7,9 @@ from components.sidebar import render_sidebar
 from telas.dashboard import tela_dashboard
 from telas.cadastro_questao import tela_cadastro
 from telas.resolver_questoes import tela_resolver
+from telas.cadastro_materia import tela_cadastro_materia
+from telas.cadastro_assunto import tela_cadastro_assunto
+from telas.cadastro_banca import tela_cadastro_banca
 
 
 st.set_page_config(
@@ -49,3 +52,12 @@ else:
 
     elif menu == "Resolver Questões":
         tela_resolver()
+
+    elif menu == "Cadastrar Matéria":
+        tela_cadastro_materia()
+
+    elif menu == "Cadastrar Assunto":
+        tela_cadastro_assunto()
+
+    elif menu == "Cadastrar Banca":
+        tela_cadastro_banca()
