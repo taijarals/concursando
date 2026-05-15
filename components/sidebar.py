@@ -13,6 +13,7 @@ def render_sidebar():
             "Menu",
             [
                 "Dashboard",
+                "Cadastros",
                 "Cadastrar Matéria",
                 "Cadastrar Assunto",
                 "Cadastrar Banca",
