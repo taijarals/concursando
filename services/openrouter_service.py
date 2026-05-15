@@ -17,11 +17,11 @@ qtd_questoes = 3
 
 modelos_ia = [
 
-    "google/gemma-4-31b-it:free",
-
     "deepseek/deepseek-v4-flash:free",
 
-    "meta-llama/llama-3.3-70b-instruct:free"
+    "meta-llama/llama-3.3-70b-instruct:free",
+
+    "google/gemma-4-31b-it:free"
 ]
 
 
@@ -40,7 +40,7 @@ client = OpenAI(
 
 
 # ==================================================
-# FUNÇÃO AUXILIAR
+# SALVAR DEBUG
 # ==================================================
 
 def salvar_debug(
@@ -66,7 +66,7 @@ def salvar_debug(
     except Exception as e:
 
         print(
-            f"Erro ao salvar arquivo debug: {e}"
+            f"Erro ao salvar debug: {e}"
         )
 
 
@@ -97,13 +97,88 @@ def limpar_texto(texto):
         texto
     )
 
-    # remove reticências quebradas
+    # remove reticências unicode
     texto = texto.replace(
         "…",
         "..."
     )
 
     return texto
+
+
+# ==================================================
+# VALIDAR QUESTÕES
+# ==================================================
+
+def validar_questoes(data):
+
+    questoes_validas = []
+
+    for q in data:
+
+        enunciado = q.get(
+            "enunciado",
+            ""
+        )
+
+        explicacao = q.get(
+            "explicacao_ia",
+            ""
+        )
+
+        alternativas = q.get(
+            "alternativas",
+            []
+        )
+
+        # ======================================
+        # ENUNCIADO
+        # ======================================
+
+        if len(enunciado) < 80:
+
+            continue
+
+        # ======================================
+        # EXPLICAÇÃO
+        # ======================================
+
+        if len(explicacao) < 50:
+
+            continue
+
+        # ======================================
+        # MÚLTIPLA ESCOLHA
+        # ======================================
+
+        if q.get("tipo") == "multipla_escolha":
+
+            if len(alternativas) < 5:
+
+                continue
+
+            valido = True
+
+            for alt in alternativas:
+
+                texto_alt = alt.get(
+                    "texto",
+                    ""
+                )
+
+                if len(texto_alt) < 30:
+
+                    valido = False
+
+                    break
+
+            if not valido:
+
+                continue
+
+        questoes_validas.append(q)
+
+    return questoes_validas
 
 
 # ==================================================
@@ -132,18 +207,30 @@ def pesquisar_questoes(
     # ==================================================
 
     prompt = f"""
-    Você é um especialista em concursos públicos.
+    Você é um especialista em concursos públicos brasileiros.
 
-    Gere {qtd_questoes} questões REALISTAS,
-    completas e bem escritas.
+    Sua tarefa é gerar questões COMPLETAS,
+    REALISTAS e DETALHADAS.
+
+    IMPORTANTE:
 
     NÃO abrevie palavras.
-    NÃO use "..." dentro do texto.
-    NÃO corte frases.
+    NÃO use letras isoladas.
     NÃO use placeholders.
-    NÃO resuma alternativas.
+    NÃO use "...".
+    NÃO resuma frases.
+    NÃO corte alternativas.
 
-    Dados:
+    TODAS as alternativas devem possuir
+    frases completas e longas.
+
+    Cada questão deve possuir:
+
+    - enunciado com no mínimo 200 caracteres
+    - alternativas com no mínimo 80 caracteres
+    - explicação com no mínimo 300 caracteres
+
+    Dados da prova:
 
     - Instituição: {instituicao}
     - Banca: {banca}
@@ -152,40 +239,36 @@ def pesquisar_questoes(
     - Disciplina: {disciplina}
     - Tipo: {tipo}
 
-    IMPORTANTE:
+    Retorne APENAS JSON válido.
 
-    - Retorne SOMENTE JSON
-    - Não use markdown
-    - Não use ```json
-    - Não escreva comentários
-    - Retorne UMA LISTA JSON
-    - NÃO envolva em {{ "questoes": [] }}
-
-    Estrutura esperada:
+    Formato obrigatório:
 
     [
       {{
-        "tipo": "multipla_escolha",
+        "tipo": "{tipo}",
 
         "enunciado":
-            "texto completo da questão",
+          "texto completo",
 
         "materia":
-            "{disciplina}",
+          "{disciplina}",
 
         "assunto":
-            "assunto",
+          "assunto detalhado",
 
         "banca":
-            "{banca}",
+          "{banca}",
+
+        "cargo":
+          "{cargo}",
 
         "dificuldade": 3,
 
         "fonte":
-            "{instituicao} {ano}",
+          "{instituicao} {ano}",
 
         "resposta_correta":
-            "A",
+          "A",
 
         "alternativas": [
 
@@ -193,25 +276,66 @@ def pesquisar_questoes(
             "letra": "A",
 
             "texto":
-                "texto completo alternativa",
+              "alternativa completa",
 
             "correta": true
-          }}
+          }},
 
+          {{
+            "letra": "B",
+
+            "texto":
+              "alternativa completa",
+
+            "correta": false
+          }},
+
+          {{
+            "letra": "C",
+
+            "texto":
+              "alternativa completa",
+
+            "correta": false
+          }},
+
+          {{
+            "letra": "D",
+
+            "texto":
+              "alternativa completa",
+
+            "correta": false
+          }},
+
+          {{
+            "letra": "E",
+
+            "texto":
+              "alternativa completa",
+
+            "correta": false
+          }}
         ],
 
         "explicacao_ia":
-            "explicação detalhada"
+          "explicação detalhada"
       }}
     ]
 
-    Regras:
+    REGRAS IMPORTANTES:
 
-    - JSON RFC8259 válido
-    - dificuldade entre 1 e 5
-    - alternativas completas
-    - explicações detalhadas
-    - escape caracteres especiais
+    - Retorne SOMENTE JSON
+    - Não use markdown
+    - Não use ```json
+    - Não escreva comentários
+    - Não invente campos
+    - Não use texto curto
+    - Não use respostas vazias
+    - Não use apenas letras
+    - Não use placeholders
+    - Não use abreviações
+    - Gere conteúdo extenso e completo
     """
 
     # ==================================================
@@ -224,7 +348,7 @@ def pesquisar_questoes(
     )
 
     # ==================================================
-    # MENSAGENS
+    # MESSAGES
     # ==================================================
 
     messages = [
@@ -244,12 +368,12 @@ def pesquisar_questoes(
     ]
 
     # ==================================================
-    # FALLBACK MODELOS
+    # FALLBACK
     # ==================================================
 
-    ultimo_erro = None
-
     response = None
+
+    ultimo_erro = None
 
     modelo_usado = None
 
@@ -285,7 +409,7 @@ def pesquisar_questoes(
             ultimo_erro = e
 
             print(
-                f"Erro no modelo {modelo}: {e}"
+                f"Erro modelo {modelo}: {e}"
             )
 
             salvar_debug(
@@ -294,14 +418,14 @@ def pesquisar_questoes(
             )
 
     # ==================================================
-    # NENHUM FUNCIONOU
+    # NENHUM MODELO
     # ==================================================
 
     if not response:
 
         raise Exception(
             f"Nenhum modelo funcionou.\n\n"
-            f"Último erro:\n{ultimo_erro}"
+            f"{ultimo_erro}"
         )
 
     # ==================================================
@@ -345,7 +469,7 @@ def pesquisar_questoes(
         )
 
     # ==================================================
-    # DEBUG TERMINAL
+    # DEBUG
     # ==================================================
 
     print("\n====================")
@@ -372,7 +496,9 @@ def pesquisar_questoes(
     # LIMPAR TEXTO
     # ==================================================
 
-    texto_limpo = limpar_texto(texto)
+    texto_limpo = limpar_texto(
+        texto
+    )
 
     salvar_debug(
         f"outputs/response_limpo_{timestamp}.txt",
@@ -380,7 +506,7 @@ def pesquisar_questoes(
     )
 
     # ==================================================
-    # CONVERTER JSON
+    # JSON
     # ==================================================
 
     try:
@@ -389,24 +515,6 @@ def pesquisar_questoes(
             texto_limpo
         )
 
-        # ==========================================
-        # CASO:
-        # { "questoes": [...] }
-        # ==========================================
-
-        if isinstance(data, dict):
-
-            if "questoes" in data:
-
-                return data["questoes"]
-
-        # ==========================================
-        # CASO:
-        # LISTA
-        # ==========================================
-
-        return data
-
     except Exception as e:
 
         salvar_debug(
@@ -414,12 +522,46 @@ def pesquisar_questoes(
             texto_limpo
         )
 
-        print("\n====================")
-        print("ERRO JSON")
-        print("====================")
-        print(texto_limpo)
-        print("====================\n")
-
         raise Exception(
             f"Erro ao converter JSON: {e}"
         )
+
+    # ==================================================
+    # CASO:
+    # { "questoes": [...] }
+    # ==================================================
+
+    if isinstance(data, dict):
+
+        if "questoes" in data:
+
+            data = data["questoes"]
+
+    # ==================================================
+    # VALIDAR QUESTÕES
+    # ==================================================
+
+    questoes_validas = validar_questoes(
+        data
+    )
+
+    # ==================================================
+    # SEM QUESTÕES VÁLIDAS
+    # ==================================================
+
+    if not questoes_validas:
+
+        salvar_debug(
+            f"outputs/questoes_invalidas_{timestamp}.txt",
+            texto_limpo
+        )
+
+        raise Exception(
+            "A IA retornou apenas questões inválidas."
+        )
+
+    # ==================================================
+    # RETORNO
+    # ==================================================
+
+    return questoes_validas
