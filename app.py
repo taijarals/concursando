@@ -9,6 +9,7 @@ from telas.resolver_questoes import tela_resolver
 from telas.importar_questoes import tela_importacao
 from telas.listar_questoes import tela_listar_questoes
 from telas.cadastro import tela_cadastros
+from telas.importar_pdf import tela_importar_pdf
 
 
 st.set_page_config(
@@ -57,3 +58,6 @@ else:
     
     elif menu == "Listar Questões":
         tela_listar_questoes()
+
+    elif menu == "Importar PDF":
+        tela_importar_pdf()
