@@ -70,7 +70,7 @@ def salvar_debug(
 
 
 # ==================================================
-# EXTRAIR JSON DA RESPOSTA
+# EXTRAIR JSON
 # ==================================================
 
 def extrair_json(
@@ -94,7 +94,7 @@ def extrair_json(
     texto = texto.strip()
 
     # ==========================================
-    # REMOVE CARACTERES INVÁLIDOS
+    # REMOVE CONTROLES INVÁLIDOS
     # ==========================================
 
     texto = re.sub(
@@ -104,7 +104,7 @@ def extrair_json(
     )
 
     # ==========================================
-    # TENTA JSON DIRETO
+    # JSON DIRETO
     # ==========================================
 
     try:
@@ -115,7 +115,7 @@ def extrair_json(
         pass
 
     # ==========================================
-    # TENTA EXTRAIR LISTA JSON
+    # EXTRAIR LISTA JSON
     # ==========================================
 
     match_lista = re.search(
@@ -131,7 +131,7 @@ def extrair_json(
         return json.loads(trecho)
 
     # ==========================================
-    # TENTA EXTRAIR OBJETO JSON
+    # EXTRAIR OBJETO JSON
     # ==========================================
 
     match_objeto = re.search(
@@ -212,7 +212,10 @@ def pesquisar_questoes(
     - não use quebras inválidas
     - não use aspas sem escape
     - alternativas completas
-    - dificuldade entre 1 e 5
+    - atribua uma dificuldade estimada entre 1 e 5
+    - considere:
+        1 = muito fácil
+        5 = muito difícil
 
     Estrutura esperada:
 
