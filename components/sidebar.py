@@ -16,6 +16,7 @@ def render_sidebar():
                 "Cadastros",
                 "Resolver Questões",
                 "Importar Questões",
+                "Importar PDF",
                 "Listar Questões"
             ]
         )
