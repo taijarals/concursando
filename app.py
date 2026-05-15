@@ -12,6 +12,7 @@ from telas.cadastro_assunto import tela_cadastro_assunto
 from telas.cadastro_banca import tela_cadastro_banca
 from telas.importar_questoes import tela_importacao
 from telas.listar_questoes import tela_listar_questoes
+from tela_cadastro import tela_cadastros
 
 
 st.set_page_config(
@@ -48,6 +49,9 @@ else:
 
     if menu == "Dashboard":
         tela_dashboard()
+
+    elif menu == "Cadastros":
+        tela_cadastros()
 
     elif menu == "Cadastrar Questão":
         tela_cadastro()
