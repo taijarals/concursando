@@ -18,7 +18,7 @@ def tela_cadastro():
 
     user = st.session_state.user
 
-    st.title("➕ Cadastro de Questão")
+    #st.title("➕ Cadastro de Questão")
 
     # ==================================================
     # BUSCAR MATÉRIAS

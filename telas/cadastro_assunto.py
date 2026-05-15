@@ -9,7 +9,7 @@ from database.supabase_client import supabase
 
 def tela_cadastro_assunto():
 
-    st.title("📝 Cadastro de Assuntos")
+    #st.title("📝 Cadastro de Assuntos")
 
     # ==================================================
     # BUSCAR MATÉRIAS

@@ -9,7 +9,7 @@ from database.supabase_client import supabase
 
 def tela_cadastro_materia():
 
-    st.title("📚 Cadastro de Matérias")
+    #st.title("📚 Cadastro de Matérias")
 
     # ==================================================
     # NOVA MATÉRIA

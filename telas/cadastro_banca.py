@@ -9,7 +9,7 @@ from database.supabase_client import supabase
 
 def tela_cadastro_banca():
 
-    st.title("🏛️ Cadastro de Bancas")
+    #st.title("🏛️ Cadastro de Bancas")
 
     # ==================================================
     # FORMULÁRIO
