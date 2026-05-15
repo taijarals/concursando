@@ -13,16 +13,16 @@ from config import OPENROUTER_API_KEY
 # CONFIG
 # ==================================================
 
-qtd_questoes = 2
+qtd_questoes = 3
 
-modelo_ia = (
-    "google/gemma-4-31b-it:free"
-)
+modelos_ia = [
 
-# outras opções:
-# "deepseek/deepseek-v4-flash:free"
-# "google/gemma-4-26b-a4b-it:free"
-# "google/gemma-4-31b-it:free"
+    "google/gemma-4-31b-it:free",
+
+    "deepseek/deepseek-v4-flash:free",
+
+    "meta-llama/llama-3.3-70b-instruct:free"
+]
 
 
 # ==================================================
@@ -71,16 +71,12 @@ def salvar_debug(
 
 
 # ==================================================
-# EXTRAIR JSON
+# LIMPAR TEXTO
 # ==================================================
 
-def extrair_json(
-    texto
-):
+def limpar_texto(texto):
 
-    # ==========================================
-    # REMOVE MARKDOWN
-    # ==========================================
+    texto = texto.strip()
 
     texto = texto.replace(
         "```json",
@@ -94,66 +90,20 @@ def extrair_json(
 
     texto = texto.strip()
 
-    # ==========================================
-    # REMOVE CONTROLES INVÁLIDOS
-    # ==========================================
-
+    # remove caracteres inválidos
     texto = re.sub(
-        r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]',
+        r'[\x00-\x1F\x7F]',
         '',
         texto
     )
 
-    # ==========================================
-    # JSON DIRETO
-    # ==========================================
-
-    try:
-
-        return json.loads(texto)
-
-    except:
-        pass
-
-    # ==========================================
-    # EXTRAIR LISTA JSON
-    # ==========================================
-
-    match_lista = re.search(
-        r'\[\s*{.*}\s*\]',
-        texto,
-        re.DOTALL
+    # remove reticências quebradas
+    texto = texto.replace(
+        "…",
+        "..."
     )
 
-    if match_lista:
-
-        trecho = match_lista.group(0)
-
-        return json.loads(trecho)
-
-    # ==========================================
-    # EXTRAIR OBJETO JSON
-    # ==========================================
-
-    match_objeto = re.search(
-        r'{.*}',
-        texto,
-        re.DOTALL
-    )
-
-    if match_objeto:
-
-        trecho = match_objeto.group(0)
-
-        return json.loads(trecho)
-
-    # ==========================================
-    # ERRO
-    # ==========================================
-
-    raise Exception(
-        "Não foi possível encontrar JSON válido."
-    )
+    return texto
 
 
 # ==================================================
@@ -185,7 +135,13 @@ def pesquisar_questoes(
     Você é um especialista em concursos públicos.
 
     Gere {qtd_questoes} questões REALISTAS,
-    similares às cobradas pela banca informada.
+    completas e bem escritas.
+
+    NÃO abrevie palavras.
+    NÃO use "..." dentro do texto.
+    NÃO corte frases.
+    NÃO use placeholders.
+    NÃO resuma alternativas.
 
     Dados:
 
@@ -202,40 +158,8 @@ def pesquisar_questoes(
     - Não use markdown
     - Não use ```json
     - Não escreva comentários
-    - Não escreva explicações fora do JSON
     - Retorne UMA LISTA JSON
     - NÃO envolva em {{ "questoes": [] }}
-
-    Regras IMPORTANTES:
-
-    - escreva textos COMPLETOS
-    - não resuma palavras
-    - não use abreviações
-    - não use reticências (...)
-    - não use placeholders
-    - não use observações internas
-    - não use anotações como:
-      "Mm:"
-      "Obs:"
-      "Nota:"
-      "O que falta"
-      "missing"
-
-    - escreva frases completas e naturais
-    - alternativas devem estar totalmente legíveis
-    - português formal
-    - não gere conteúdo truncado
-    - não compacte texto
-    - não corte palavras
-
-    - JSON RFC8259 válido
-    - escape caracteres especiais
-
-    - atribua uma dificuldade estimada entre 1 e 5
-
-    - considere:
-        1 = muito fácil
-        5 = muito difícil
 
     Estrutura esperada:
 
@@ -244,7 +168,7 @@ def pesquisar_questoes(
         "tipo": "multipla_escolha",
 
         "enunciado":
-            "texto da questão",
+            "texto completo da questão",
 
         "materia":
             "{disciplina}",
@@ -269,45 +193,9 @@ def pesquisar_questoes(
             "letra": "A",
 
             "texto":
-                "texto alternativa",
+                "texto completo alternativa",
 
             "correta": true
-          }},
-
-          {{
-            "letra": "B",
-
-            "texto":
-                "texto alternativa",
-
-            "correta": false
-          }},
-
-          {{
-            "letra": "C",
-
-            "texto":
-                "texto alternativa",
-
-            "correta": false
-          }},
-
-          {{
-            "letra": "D",
-
-            "texto":
-                "texto alternativa",
-
-            "correta": false
-          }},
-
-          {{
-            "letra": "E",
-
-            "texto":
-                "texto alternativa",
-
-            "correta": false
           }}
 
         ],
@@ -316,6 +204,14 @@ def pesquisar_questoes(
             "explicação detalhada"
       }}
     ]
+
+    Regras:
+
+    - JSON RFC8259 válido
+    - dificuldade entre 1 e 5
+    - alternativas completas
+    - explicações detalhadas
+    - escape caracteres especiais
     """
 
     # ==================================================
@@ -328,50 +224,84 @@ def pesquisar_questoes(
     )
 
     # ==================================================
-    # REQUEST IA
+    # MENSAGENS
     # ==================================================
 
-    try:
+    messages = [
 
-        response = (
-            client.chat.completions.create(
+        {
+            "role": "system",
 
-                model=modelo_ia,
+            "content":
+                "Você responde apenas JSON válido."
+        },
 
-                messages=[
+        {
+            "role": "user",
 
-                    {
-                        "role": "system",
+            "content": prompt
+        }
+    ]
 
-                        "content":
-                            """
-                            Você responde SOMENTE JSON válido.
+    # ==================================================
+    # FALLBACK MODELOS
+    # ==================================================
 
-                            Nunca use markdown.
+    ultimo_erro = None
 
-                            Nunca explique nada.
+    response = None
 
-                            Nunca escreva texto fora do JSON.
-                            """
-                    },
+    modelo_usado = None
 
-                    {
-                        "role": "user",
+    for modelo in modelos_ia:
 
-                        "content": prompt
-                    }
-                ],
+        try:
 
-                temperature=0,
-
-                max_tokens=4000
+            print(
+                f"\nTentando modelo: {modelo}"
             )
-        )
 
-    except Exception as e:
+            response = (
+                client.chat.completions.create(
+
+                    model=modelo,
+
+                    messages=messages,
+
+                    temperature=0.2
+                )
+            )
+
+            modelo_usado = modelo
+
+            print(
+                f"Modelo funcionando: {modelo}"
+            )
+
+            break
+
+        except Exception as e:
+
+            ultimo_erro = e
+
+            print(
+                f"Erro no modelo {modelo}: {e}"
+            )
+
+            salvar_debug(
+                f"outputs/erro_modelo_{timestamp}.txt",
+                f"Modelo: {modelo}\n\nErro:\n{e}"
+            )
+
+    # ==================================================
+    # NENHUM FUNCIONOU
+    # ==================================================
+
+    if not response:
 
         raise Exception(
-            f"Erro na requisição OpenRouter: {e}"
+            f"Nenhum modelo funcionou.\n\n"
+            f"Último erro:\n{ultimo_erro}"
         )
 
     # ==================================================
@@ -400,7 +330,7 @@ def pesquisar_questoes(
         )
 
     # ==================================================
-    # VALIDAÇÃO
+    # RESPOSTA VAZIA
     # ==================================================
 
     if not texto:
@@ -419,6 +349,11 @@ def pesquisar_questoes(
     # ==================================================
 
     print("\n====================")
+    print("MODELO USADO")
+    print("====================")
+    print(modelo_usado)
+
+    print("\n====================")
     print("RESPOSTA IA")
     print("====================")
     print(texto)
@@ -434,30 +369,30 @@ def pesquisar_questoes(
     )
 
     # ==================================================
-    # EXTRAIR JSON
+    # LIMPAR TEXTO
+    # ==================================================
+
+    texto_limpo = limpar_texto(texto)
+
+    salvar_debug(
+        f"outputs/response_limpo_{timestamp}.txt",
+        texto_limpo
+    )
+
+    # ==================================================
+    # CONVERTER JSON
     # ==================================================
 
     try:
 
-        data = extrair_json(texto)
-
-        # ==============================================
-        # SALVAR JSON FORMATADO
-        # ==============================================
-
-        salvar_debug(
-            f"outputs/json_ok_{timestamp}.json",
-            json.dumps(
-                data,
-                ensure_ascii=False,
-                indent=4
-            )
+        data = json.loads(
+            texto_limpo
         )
 
-        # ==============================================
+        # ==========================================
         # CASO:
         # { "questoes": [...] }
-        # ==============================================
+        # ==========================================
 
         if isinstance(data, dict):
 
@@ -465,28 +400,24 @@ def pesquisar_questoes(
 
                 return data["questoes"]
 
-        # ==============================================
+        # ==========================================
         # CASO:
-        # LISTA NORMAL
-        # ==============================================
+        # LISTA
+        # ==========================================
 
         return data
 
     except Exception as e:
 
-        # ==============================================
-        # SALVAR ERRO
-        # ==============================================
-
         salvar_debug(
             f"outputs/error_json_{timestamp}.txt",
-            texto
+            texto_limpo
         )
 
         print("\n====================")
         print("ERRO JSON")
         print("====================")
-        print(texto)
+        print(texto_limpo)
         print("====================\n")
 
         raise Exception(
