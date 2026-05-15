@@ -70,12 +70,99 @@ def salvar_debug(
 
 
 # ==================================================
+# EXTRAIR JSON DA RESPOSTA
+# ==================================================
+
+def extrair_json(
+    texto
+):
+
+    # ==========================================
+    # REMOVE MARKDOWN
+    # ==========================================
+
+    texto = texto.replace(
+        "```json",
+        ""
+    )
+
+    texto = texto.replace(
+        "```",
+        ""
+    )
+
+    texto = texto.strip()
+
+    # ==========================================
+    # REMOVE CARACTERES INVÁLIDOS
+    # ==========================================
+
+    texto = re.sub(
+        r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]',
+        '',
+        texto
+    )
+
+    # ==========================================
+    # TENTA JSON DIRETO
+    # ==========================================
+
+    try:
+
+        return json.loads(texto)
+
+    except:
+        pass
+
+    # ==========================================
+    # TENTA EXTRAIR LISTA JSON
+    # ==========================================
+
+    match_lista = re.search(
+        r'\[\s*{.*}\s*\]',
+        texto,
+        re.DOTALL
+    )
+
+    if match_lista:
+
+        trecho = match_lista.group(0)
+
+        return json.loads(trecho)
+
+    # ==========================================
+    # TENTA EXTRAIR OBJETO JSON
+    # ==========================================
+
+    match_objeto = re.search(
+        r'{.*}',
+        texto,
+        re.DOTALL
+    )
+
+    if match_objeto:
+
+        trecho = match_objeto.group(0)
+
+        return json.loads(trecho)
+
+    # ==========================================
+    # ERRO
+    # ==========================================
+
+    raise Exception(
+        "Não foi possível encontrar JSON válido."
+    )
+
+
+# ==================================================
 # PESQUISAR QUESTÕES
 # ==================================================
 
 def pesquisar_questoes(
     instituicao,
     banca,
+    cargo,
     ano,
     disciplina,
     tipo
@@ -103,6 +190,7 @@ def pesquisar_questoes(
 
     - Instituição: {instituicao}
     - Banca: {banca}
+    - Cargo: {cargo}
     - Ano: {ano}
     - Disciplina: {disciplina}
     - Tipo: {tipo}
@@ -116,6 +204,15 @@ def pesquisar_questoes(
     - Não escreva explicações fora do JSON
     - Retorne UMA LISTA JSON
     - NÃO envolva em {{ "questoes": [] }}
+
+    Regras importantes:
+
+    - JSON RFC8259 válido
+    - escape caracteres especiais
+    - não use quebras inválidas
+    - não use aspas sem escape
+    - alternativas completas
+    - dificuldade entre 1 e 5
 
     Estrutura esperada:
 
@@ -169,14 +266,6 @@ def pesquisar_questoes(
             "explicação detalhada"
       }}
     ]
-
-    Regras:
-
-    - JSON RFC8259 válido
-    - dificuldade entre 1 e 5
-    - alternativas completas
-    - explicações detalhadas
-    - escape caracteres especiais
     """
 
     # ==================================================
@@ -205,7 +294,15 @@ def pesquisar_questoes(
                         "role": "system",
 
                         "content":
-                            "Você responde apenas JSON válido."
+                            """
+                            Você responde SOMENTE JSON válido.
+
+                            Nunca use markdown.
+
+                            Nunca explique nada.
+
+                            Nunca escreva texto fora do JSON.
+                            """
                     },
 
                     {
@@ -276,7 +373,7 @@ def pesquisar_questoes(
     print("====================\n")
 
     # ==================================================
-    # SALVAR RESPONSE RAW
+    # SALVAR RAW
     # ==================================================
 
     salvar_debug(
@@ -285,57 +382,30 @@ def pesquisar_questoes(
     )
 
     # ==================================================
-    # LIMPEZA
-    # ==================================================
-
-    texto = texto.strip()
-
-    # remove markdown
-    texto = texto.replace(
-        "```json",
-        ""
-    )
-
-    texto = texto.replace(
-        "```",
-        ""
-    )
-
-    texto = texto.strip()
-
-    # ==================================================
-    # REMOVER CONTROLES INVÁLIDOS
-    # ==================================================
-
-    texto_limpo = re.sub(
-        r'[\x00-\x1F\x7F]',
-        '',
-        texto
-    )
-
-    # ==================================================
-    # SALVAR TEXTO LIMPO
-    # ==================================================
-
-    salvar_debug(
-        f"outputs/response_limpo_{timestamp}.txt",
-        texto_limpo
-    )
-
-    # ==================================================
-    # CONVERTER JSON
+    # EXTRAIR JSON
     # ==================================================
 
     try:
 
-        data = json.loads(
-            texto_limpo
+        data = extrair_json(texto)
+
+        # ==============================================
+        # SALVAR JSON FORMATADO
+        # ==============================================
+
+        salvar_debug(
+            f"outputs/json_ok_{timestamp}.json",
+            json.dumps(
+                data,
+                ensure_ascii=False,
+                indent=4
+            )
         )
 
-        # =====================================
+        # ==============================================
         # CASO:
         # { "questoes": [...] }
-        # =====================================
+        # ==============================================
 
         if isinstance(data, dict):
 
@@ -343,28 +413,28 @@ def pesquisar_questoes(
 
                 return data["questoes"]
 
-        # =====================================
+        # ==============================================
         # CASO:
         # LISTA NORMAL
-        # =====================================
+        # ==============================================
 
         return data
 
     except Exception as e:
 
-        # =====================================
-        # SALVAR ERRO JSON
-        # =====================================
+        # ==============================================
+        # SALVAR ERRO
+        # ==============================================
 
         salvar_debug(
             f"outputs/error_json_{timestamp}.txt",
-            texto_limpo
+            texto
         )
 
         print("\n====================")
         print("ERRO JSON")
         print("====================")
-        print(texto_limpo)
+        print(texto)
         print("====================\n")
 
         raise Exception(
