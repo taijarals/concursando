@@ -180,6 +180,39 @@ def tela_cadastro_materia():
 
                             st.stop()
 
+                        # =========================
+                        # VERIFICAR DUPLICIDADE
+                        # =========================
+
+                        existe = (
+                            supabase
+                            .table(
+                                "concur_materias"
+                            )
+                            .select("*")
+                            .eq(
+                                "nome",
+                                novo_nome
+                            )
+                            .neq(
+                                "id",
+                                materia["id"]
+                            )
+                            .execute()
+                        )
+
+                        if existe.data:
+
+                            st.warning(
+                                "Já existe uma matéria com esse nome."
+                            )
+
+                            st.stop()
+
+                        # =========================
+                        # UPDATE
+                        # =========================
+
                         (
                             supabase
                             .table(
@@ -223,6 +256,39 @@ def tela_cadastro_materia():
                 ):
 
                     try:
+
+                        # =========================
+                        # VERIFICAR ASSUNTOS
+                        # =========================
+
+                        assuntos = (
+
+                            supabase
+                            .table(
+                                "concur_assuntos"
+                            )
+                            .select("id")
+                            .eq(
+                                "materia_id",
+                                materia["id"]
+                            )
+                            .execute()
+                        )
+
+                        if assuntos.data:
+
+                            st.warning(
+
+                                "Não é possível excluir "
+                                "essa matéria porque "
+                                "existem assuntos vinculados."
+                            )
+
+                            st.stop()
+
+                        # =========================
+                        # DELETE
+                        # =========================
 
                         (
                             supabase
