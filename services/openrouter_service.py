@@ -13,15 +13,16 @@ from config import OPENROUTER_API_KEY
 # CONFIG
 # ==================================================
 
-qtd_questoes = 3
+qtd_questoes = 2
 
 modelo_ia = (
-    "meta-llama/llama-3.3-70b-instruct:free"
+    "google/gemma-4-31b-it:free"
 )
 
 # outras opções:
 # "deepseek/deepseek-v4-flash:free"
-# "google/gemma-3-27b-it:free"
+# "google/gemma-4-26b-a4b-it:free"
+# "google/gemma-4-31b-it:free"
 
 
 # ==================================================
