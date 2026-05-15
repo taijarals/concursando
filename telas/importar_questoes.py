@@ -9,7 +9,6 @@ from services.openrouter_service import pesquisar_questoes
 # TELA
 # ==================================================
 
-
 def tela_importacao():
 
     user = st.session_state.user
@@ -24,6 +23,10 @@ def tela_importacao():
 
     instituicao = st.text_input(
         "Instituição"
+    )
+
+    cargo = st.text_input(
+        "Cargo"
     )
 
     banca = st.text_input(
@@ -67,6 +70,7 @@ def tela_importacao():
                 questoes = pesquisar_questoes(
                     instituicao,
                     banca,
+                    cargo,
                     ano,
                     disciplina,
                     tipo
@@ -103,15 +107,28 @@ def tela_importacao():
             ):
 
                 st.write(
-                    f"**Enunciado:** {questao['enunciado']}"
+                    f"**Enunciado:** "
+                    f"{questao['enunciado']}"
                 )
 
                 st.write(
-                    f"**Resposta:** {questao['resposta_correta']}"
+                    f"**Cargo:** "
+                    f"{cargo}"
                 )
 
                 st.write(
-                    f"**Assunto:** {questao['assunto']}"
+                    f"**Resposta:** "
+                    f"{questao['resposta_correta']}"
+                )
+
+                st.write(
+                    f"**Assunto:** "
+                    f"{questao['assunto']}"
+                )
+
+                st.write(
+                    f"**Dificuldade:** "
+                    f"{questao['dificuldade']}"
                 )
 
                 if (
@@ -119,13 +136,22 @@ def tela_importacao():
                     == "multipla_escolha"
                 ):
 
+                    st.subheader(
+                        "Alternativas"
+                    )
+
                     for alt in questao[
                         "alternativas"
                     ]:
 
                         st.write(
-                            f"{alt['letra']}) {alt['texto']}"
+                            f"{alt['letra']}) "
+                            f"{alt['texto']}"
                         )
+
+                st.subheader(
+                    "Explicação IA"
+                )
 
                 st.info(
                     questao[
@@ -146,6 +172,28 @@ def tela_importacao():
                 for questao in questoes:
 
                     # =====================
+                    # NORMALIZAR TEXTO
+                    # =====================
+
+                    materia_nome = (
+                        questao["materia"]
+                        .upper()
+                        .strip()
+                    )
+
+                    assunto_nome = (
+                        questao["assunto"]
+                        .upper()
+                        .strip()
+                    )
+
+                    banca_nome = (
+                        questao["banca"]
+                        .upper()
+                        .strip()
+                    )
+
+                    # =====================
                     # BUSCAR MATÉRIA
                     # =====================
 
@@ -157,9 +205,7 @@ def tela_importacao():
                         .select("*")
                         .eq(
                             "nome",
-                            questao[
-                                "materia"
-                            ]
+                            materia_nome
                         )
                         .execute()
                     )
@@ -178,9 +224,8 @@ def tela_importacao():
                                 "concur_materias"
                             )
                             .insert({
-                                "nome": questao[
-                                    "materia"
-                                ]
+                                "nome":
+                                    materia_nome
                             })
                             .execute()
                         )
@@ -201,9 +246,7 @@ def tela_importacao():
                         .select("*")
                         .eq(
                             "nome",
-                            questao[
-                                "banca"
-                            ]
+                            banca_nome
                         )
                         .execute()
                     )
@@ -222,9 +265,8 @@ def tela_importacao():
                                 "concur_bancas"
                             )
                             .insert({
-                                "nome": questao[
-                                    "banca"
-                                ]
+                                "nome":
+                                    banca_nome
                             })
                             .execute()
                         )
@@ -245,9 +287,7 @@ def tela_importacao():
                         .select("*")
                         .eq(
                             "nome",
-                            questao[
-                                "assunto"
-                            ]
+                            assunto_nome
                         )
                         .eq(
                             "materia_id",
@@ -270,10 +310,12 @@ def tela_importacao():
                                 "concur_assuntos"
                             )
                             .insert({
-                                "nome": questao[
-                                    "assunto"
-                                ],
-                                "materia_id": materia_id
+
+                                "nome":
+                                    assunto_nome,
+
+                                "materia_id":
+                                    materia_id
                             })
                             .execute()
                         )
@@ -293,37 +335,46 @@ def tela_importacao():
                         )
                         .insert({
 
-                            "tipo": questao[
-                                "tipo"
-                            ],
+                            "tipo":
+                                questao["tipo"],
 
-                            "enunciado": questao[
-                                "enunciado"
-                            ],
+                            "enunciado":
+                                questao["enunciado"],
 
-                            "materia_id": materia_id,
+                            "materia_id":
+                                materia_id,
 
-                            "assunto_id": assunto_id,
+                            "assunto_id":
+                                assunto_id,
 
-                            "banca_id": banca_id,
+                            "banca_id":
+                                banca_id,
 
-                            "dificuldade": questao[
-                                "dificuldade"
-                            ],
+                            "cargo":
+                                cargo.upper(),
 
-                            "explicacao_ia": questao[
-                                "explicacao_ia"
-                            ],
+                            "dificuldade":
+                                questao[
+                                    "dificuldade"
+                                ],
 
-                            "resposta_correta": questao[
-                                "resposta_correta"
-                            ],
+                            "explicacao_ia":
+                                questao[
+                                    "explicacao_ia"
+                                ],
 
-                            "fonte": questao[
-                                "fonte"
-                            ],
+                            "resposta_correta":
+                                questao[
+                                    "resposta_correta"
+                                ],
 
-                            "criado_por": user.id
+                            "fonte":
+                                questao[
+                                    "fonte"
+                                ],
+
+                            "criado_por":
+                                user.id
                         })
                         .execute()
                     )
@@ -352,19 +403,23 @@ def tela_importacao():
                                 )
                                 .insert({
 
-                                    "questao_id": questao_id,
+                                    "questao_id":
+                                        questao_id,
 
-                                    "letra": alt[
-                                        "letra"
-                                    ],
+                                    "letra":
+                                        alt[
+                                            "letra"
+                                        ],
 
-                                    "texto": alt[
-                                        "texto"
-                                    ],
+                                    "texto":
+                                        alt[
+                                            "texto"
+                                        ],
 
-                                    "correta": alt[
-                                        "correta"
-                                    ]
+                                    "correta":
+                                        alt[
+                                            "correta"
+                                        ]
                                 })
                                 .execute()
                             )
@@ -376,6 +431,8 @@ def tela_importacao():
                 del st.session_state[
                     "questoes_ia"
                 ]
+
+                st.rerun()
 
             except Exception as e:
 
