@@ -16,12 +16,12 @@ from config import OPENROUTER_API_KEY
 qtd_questoes = 3
 
 modelo_ia = (
-    "deepseek/deepseek-v4-flash:free"
+    "meta-llama/llama-3.3-70b-instruct:free"
 )
 
 # outras opções:
+# "deepseek/deepseek-v4-flash:free"
 # "google/gemma-3-27b-it:free"
-# "meta-llama/llama-3.3-70b-instruct:free"
 
 
 # ==================================================
@@ -205,14 +205,33 @@ def pesquisar_questoes(
     - Retorne UMA LISTA JSON
     - NÃO envolva em {{ "questoes": [] }}
 
-    Regras importantes:
+    Regras IMPORTANTES:
+
+    - escreva textos COMPLETOS
+    - não resuma palavras
+    - não use abreviações
+    - não use reticências (...)
+    - não use placeholders
+    - não use observações internas
+    - não use anotações como:
+      "Mm:"
+      "Obs:"
+      "Nota:"
+      "O que falta"
+      "missing"
+
+    - escreva frases completas e naturais
+    - alternativas devem estar totalmente legíveis
+    - português formal
+    - não gere conteúdo truncado
+    - não compacte texto
+    - não corte palavras
 
     - JSON RFC8259 válido
     - escape caracteres especiais
-    - não use quebras inválidas
-    - não use aspas sem escape
-    - alternativas completas
+
     - atribua uma dificuldade estimada entre 1 e 5
+
     - considere:
         1 = muito fácil
         5 = muito difícil
@@ -256,6 +275,33 @@ def pesquisar_questoes(
 
           {{
             "letra": "B",
+
+            "texto":
+                "texto alternativa",
+
+            "correta": false
+          }},
+
+          {{
+            "letra": "C",
+
+            "texto":
+                "texto alternativa",
+
+            "correta": false
+          }},
+
+          {{
+            "letra": "D",
+
+            "texto":
+                "texto alternativa",
+
+            "correta": false
+          }},
+
+          {{
+            "letra": "E",
 
             "texto":
                 "texto alternativa",
@@ -315,7 +361,9 @@ def pesquisar_questoes(
                     }
                 ],
 
-                temperature=0.2
+                temperature=0,
+
+                max_tokens=4000
             )
         )
 
