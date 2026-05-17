@@ -15,7 +15,7 @@ LETRAS_ALTERNATIVAS = [
 ]
 
 
-GEMINI_PDF_MODEL = "gemini-1.5-flash"
+GEMINI_PDF_MODEL = "gemini-2.0-flash"
 
 
 PROMPT_EXTRACAO_GEMINI = """
