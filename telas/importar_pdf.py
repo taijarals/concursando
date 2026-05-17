@@ -6,6 +6,7 @@ from database.supabase_client import supabase
 from services.pdf_service import extrair_paginas_pdf
 from services.prova_pdf_parser import identificar_dados_prova
 from services.questao_pdf_parser import (
+    extrair_questoes_pagina_texto,
     extrair_questoes_pdf_gemini
 )
 
@@ -13,6 +14,9 @@ from services.questao_pdf_parser import (
 def inicializar_estado_pdf():
     if "pdf_etapa" not in st.session_state:
         st.session_state["pdf_etapa"] = "upload"
+    
+    if "pdf_modo_processamento" not in st.session_state:
+        st.session_state["pdf_modo_processamento"] = "pagina_por_pagina"
 
 
 def resetar_importacao_pdf():
@@ -23,7 +27,10 @@ def resetar_importacao_pdf():
         "pdf_dados_confirmados",
         "pdf_questoes",
         "pdf_bytes",
-        "pdf_nome"
+        "pdf_nome",
+        "pdf_modo_processamento",
+        "pdf_pagina_atual",
+        "pdf_questoes_por_pagina"
     ]
 
     for chave in chaves:
@@ -232,6 +239,12 @@ def render_upload_pdf():
         )
         return
 
+    st.info(
+        "💡 **Dica:** O sistema processará o PDF página por página "
+        "para economizar tokens da IA. Você poderá revisar as questões "
+        "encontradas em cada página antes de importar."
+    )
+
     if st.button("Analisar PDF"):
         with st.spinner(
             "Lendo PDF e identificando dados da prova..."
@@ -268,7 +281,7 @@ def render_upload_pdf():
                 ] = "confirmar_dados"
 
                 st.success(
-                    "PDF analisado com sucesso!"
+                    f"PDF analisado com sucesso! ({len(paginas)} páginas)"
                 )
 
                 st.rerun()
@@ -334,16 +347,195 @@ def render_confirmar_dados():
 
         st.session_state[
             "pdf_etapa"
-        ] = "identificar_questoes"
+        ] = "escolher_modo"
 
         st.success("Dados confirmados!")
 
         st.rerun()
 
 
-def render_identificar_questoes():
-    st.subheader(
-        "3. Identificar questões"
+def render_escolher_modo():
+    """Permite escolher entre modo página por página ou tudo de uma vez"""
+    st.subheader("3. Escolher modo de processamento")
+
+    st.write(
+        "Como você deseja processar as questões?"
+    )
+
+    modo = st.radio(
+        "Modo de processamento",
+        options=[
+            "pagina_por_pagina",
+            "tudo_de_uma_vez"
+        ],
+        format_func=lambda x: {
+            "pagina_por_pagina": "📄 Página por Página (Economiza tokens)",
+            "tudo_de_uma_vez": "⚡ Tudo de Uma Vez (Mais rápido)"
+        }[x],
+        key="modo_processamento_selector"
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("⬅️ Voltar"):
+            st.session_state["pdf_etapa"] = "confirmar_dados"
+            st.rerun()
+
+    with col2:
+        if st.button("Continuar"):
+            st.session_state["pdf_modo_processamento"] = modo
+            st.session_state["pdf_pagina_atual"] = 0
+            st.session_state["pdf_questoes_por_pagina"] = {}
+
+            if modo == "pagina_por_pagina":
+                st.session_state["pdf_etapa"] = "processar_pagina"
+            else:
+                st.session_state["pdf_etapa"] = "processar_tudo"
+
+            st.rerun()
+
+
+def render_processar_pagina():
+    """Processa página por página"""
+    st.subheader("4. Processar Questões (Página por Página)")
+
+    paginas = st.session_state.get("pdf_paginas", [])
+    pagina_atual = st.session_state.get("pdf_pagina_atual", 0)
+    questoes_por_pagina = st.session_state.get(
+        "pdf_questoes_por_pagina",
+        {}
+    )
+    dados = st.session_state.get(
+        "pdf_dados_confirmados",
+        {}
+    )
+
+    if pagina_atual >= len(paginas):
+        st.session_state["pdf_etapa"] = "revisar_questoes"
+        st.rerun()
+        return
+
+    pagina = paginas[pagina_atual]
+    numero_pagina = pagina["numero"]
+    texto_pagina = pagina["texto"]
+
+    st.write(
+        f"Processando página **{numero_pagina}** de **{len(paginas)}**"
+    )
+
+    progress = st.progress(
+        (pagina_atual + 1) / len(paginas)
+    )
+
+    col1, col2, col3 = st.columns([2, 1, 1])
+
+    with col1:
+        st.write(f"**Progresso:** {pagina_atual + 1}/{len(paginas)} páginas")
+
+    with col2:
+        if st.button("⏭️ Pular"):
+            st.session_state["pdf_pagina_atual"] = pagina_atual + 1
+            st.rerun()
+
+    with col3:
+        if st.button("⬅️ Voltar"):
+            st.session_state["pdf_etapa"] = "escolher_modo"
+            st.rerun()
+
+    if numero_pagina not in questoes_por_pagina:
+        with st.spinner(
+            f"Analisando página {numero_pagina}..."
+        ):
+            try:
+                questoes = extrair_questoes_pagina_texto(
+                    texto_pagina,
+                    numero_pagina,
+                    dados
+                )
+
+                questoes_por_pagina[numero_pagina] = questoes
+
+                st.session_state[
+                    "pdf_questoes_por_pagina"
+                ] = questoes_por_pagina
+
+                if questoes:
+                    st.success(
+                        f"✓ {len(questoes)} questão(ões) encontrada(s)"
+                    )
+                else:
+                    st.info("Nenhuma questão encontrada nesta página")
+
+            except Exception as e:
+                st.error(
+                    f"Erro ao processar página {numero_pagina}: {e}"
+                )
+
+    questoes_pagina = questoes_por_pagina.get(
+        numero_pagina,
+        []
+    )
+
+    if questoes_pagina:
+        st.subheader(f"Questões da Página {numero_pagina}")
+
+        for idx, questao in enumerate(questoes_pagina, start=1):
+            with st.expander(
+                f"Questão {idx}: {questao.get('enunciado', '')[:50]}..."
+            ):
+                st.write(
+                    f"**Tipo:** {questao.get('tipo', '')}"
+                )
+                st.write(
+                    f"**Enunciado:** {questao.get('enunciado', '')}"
+                )
+
+                alternativas = questao.get(
+                    "alternativas",
+                    []
+                )
+
+                if alternativas:
+                    st.write("**Alternativas:**")
+                    for alternativa in alternativas:
+                        st.write(
+                            f"{alternativa.get('letra')}) "
+                            f"{alternativa.get('texto', '')}"
+                        )
+
+    col1, col2, col3 = st.columns([1, 1, 1])
+
+    with col1:
+        if st.button("⬅️ Voltar (página anterior)"):
+            if pagina_atual > 0:
+                st.session_state["pdf_pagina_atual"] = pagina_atual - 1
+                st.rerun()
+
+    with col2:
+        if st.button("⏭️ Próxima página"):
+            st.session_state["pdf_pagina_atual"] = pagina_atual + 1
+            st.rerun()
+
+    with col3:
+        if st.button("✅ Finalizar"):
+            # Consolidar todas as questões
+            todas_questoes = []
+            for questoes_pag in questoes_por_pagina.values():
+                todas_questoes.extend(questoes_pag)
+
+            st.session_state["pdf_questoes"] = todas_questoes
+            st.session_state["pdf_etapa"] = "revisar_questoes"
+            st.rerun()
+
+
+def render_processar_tudo():
+    """Processa o PDF inteiro de uma vez (modo antigo)"""
+    st.subheader("4. Processar PDF Completo")
+
+    st.info(
+        "⚠️ Modo 'Tudo de uma vez': O PDF inteiro será enviado para a IA. "
+        "Isso pode usar mais tokens e ser mais lento."
     )
 
     dados = st.session_state.get(
@@ -351,57 +543,56 @@ def render_identificar_questoes():
         {}
     )
 
-    st.write("Dados confirmados:")
+    col1, col2 = st.columns(2)
 
-    st.json(dados)
+    with col1:
+        if st.button("⬅️ Voltar"):
+            st.session_state["pdf_etapa"] = "escolher_modo"
+            st.rerun()
 
-    st.info(
-        "O sistema enviará o PDF para o Gemini "
-        "e tentará extrair as questões."
-    )
-
-    if st.button(
-        "🔎 Identificar questões do PDF"
-    ):
-        with st.spinner(
-            "Identificando questões..."
+    with col2:
+        if st.button(
+            "🔎 Processar PDF Completo"
         ):
-            try:
-                pdf_bytes = st.session_state.get(
-                    "pdf_bytes"
-                )
-
-                if not pdf_bytes:
-                    st.warning(
-                        "PDF não encontrado."
+            with st.spinner(
+                "Processando PDF completo..."
+            ):
+                try:
+                    pdf_bytes = st.session_state.get(
+                        "pdf_bytes"
                     )
-                    return
 
-                questoes = (
-                    extrair_questoes_pdf_gemini(
-                        pdf_bytes,
-                        dados
+                    if not pdf_bytes:
+                        st.warning(
+                            "PDF não encontrado."
+                        )
+                        return
+
+                    questoes = (
+                        extrair_questoes_pdf_gemini(
+                            pdf_bytes,
+                            dados
+                        )
                     )
-                )
 
-                st.session_state[
-                    "pdf_questoes"
-                ] = questoes
+                    st.session_state[
+                        "pdf_questoes"
+                    ] = questoes
 
-                st.session_state[
-                    "pdf_etapa"
-                ] = "revisar_questoes"
+                    st.session_state[
+                        "pdf_etapa"
+                    ] = "revisar_questoes"
 
-                st.success(
-                    f"{len(questoes)} questões identificadas!"
-                )
+                    st.success(
+                        f"{len(questoes)} questões identificadas!"
+                    )
 
-                st.rerun()
+                    st.rerun()
 
-            except Exception as e:
-                st.error(
-                    f"Erro ao identificar questões: {e}"
-                )
+                except Exception as e:
+                    st.error(
+                        f"Erro ao processar: {e}"
+                    )
 
 
 def render_dados_questao(questao):
@@ -413,6 +604,11 @@ def render_dados_questao(questao):
         f"**Enunciado:** "
         f"{questao.get('enunciado', '')}"
     )
+
+    if questao.get("pagina"):
+        st.write(
+            f"**Página:** {questao.get('pagina')}"
+        )
 
     alternativas = questao.get(
         "alternativas",
@@ -430,7 +626,7 @@ def render_dados_questao(questao):
 
 
 def render_revisar_questoes():
-    st.subheader("4. Revisar questões")
+    st.subheader("5. Revisar questões")
 
     questoes = st.session_state.get(
         "pdf_questoes",
@@ -465,9 +661,18 @@ def render_revisar_questoes():
         if st.button(
             "⬅️ Voltar"
         ):
-            st.session_state[
-                "pdf_etapa"
-            ] = "identificar_questoes"
+            modo = st.session_state.get(
+                "pdf_modo_processamento"
+            )
+
+            if modo == "pagina_por_pagina":
+                st.session_state[
+                    "pdf_etapa"
+                ] = "processar_pagina"
+            else:
+                st.session_state[
+                    "pdf_etapa"
+                ] = "processar_tudo"
 
             st.rerun()
 
@@ -530,8 +735,14 @@ def tela_importar_pdf():
     elif etapa == "confirmar_dados":
         render_confirmar_dados()
 
-    elif etapa == "identificar_questoes":
-        render_identificar_questoes()
+    elif etapa == "escolher_modo":
+        render_escolher_modo()
+
+    elif etapa == "processar_pagina":
+        render_processar_pagina()
+
+    elif etapa == "processar_tudo":
+        render_processar_tudo()
 
     elif etapa == "revisar_questoes":
         render_revisar_questoes()
