@@ -6,3 +6,5 @@ google-generativeai
 pandas
 plotly
 pdfplumber
+google-genai
+pymupdf
