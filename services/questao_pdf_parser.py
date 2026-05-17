@@ -84,6 +84,26 @@ def obter_modelo_gemini_pdf():
     )
 
 
+def obter_modelo_deepseek():
+    """
+    Obtém modelo via OpenRouter (Deepseek).
+    Requer OPENROUTER_API_KEY no ambiente.
+    """
+    import os
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    
+    if not api_key:
+        raise ValueError(
+            "OPENROUTER_API_KEY não configurada no ambiente."
+        )
+    
+    return {
+        "type": "openrouter",
+        "api_key": api_key,
+        "model": "deepseek/deepseek-chat"
+    }
+
+
 def ler_bytes_pdf(origem_pdf):
     if isinstance(origem_pdf, bytes):
         return origem_pdf
@@ -337,18 +357,103 @@ def montar_questao_gemini(
     return questao
 
 
-def extrair_questoes_pagina_texto(
+def extrair_questoes_com_deepseek(
     texto_pagina,
     numero_pagina,
     dados_prova
 ):
     """
+    Extrai questões usando Deepseek via OpenRouter.
+    """
+    import requests
+    
+    modelo_info = obter_modelo_deepseek()
+    
+    headers = {
+        "Authorization": f"Bearer {modelo_info['api_key']}",
+        "Content-Type": "application/json"
+    }
+    
+    prompt = f"""
+{PROMPT_EXTRACAO_PAGINA}
+
+Aqui está o conteúdo da página {numero_pagina}:
+
+{texto_pagina}
+"""
+
+    payload = {
+        "model": modelo_info["model"],
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "temperature": 0.3,
+    }
+    
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers=headers,
+        json=payload
+    )
+    
+    if response.status_code != 200:
+        raise Exception(
+            f"Erro ao chamar Deepseek: {response.text}"
+        )
+    
+    resposta = response.json()
+    texto_resposta = resposta["choices"][0]["message"]["content"]
+    
+    try:
+        itens = carregar_json_questoes(texto_resposta)
+    except (json.JSONDecodeError, ValueError):
+        return []
+
+    questoes = []
+
+    for indice, item in enumerate(itens, start=1):
+        if isinstance(item, dict) and item.get("enunciado"):
+            questao = montar_questao_gemini(
+                item,
+                indice,
+                dados_prova
+            )
+            questao["pagina"] = numero_pagina
+            questoes.append(questao)
+
+    return questoes
+
+
+def extrair_questoes_pagina_texto(
+    texto_pagina,
+    numero_pagina,
+    dados_prova,
+    modelo_ia="gemini"
+):
+    """
     Extrai questões de uma página usando texto simples.
-    Usa IA apenas para páginas com conteúdo potencial de questões.
+    Suporta múltiplos modelos de IA.
+    
+    Args:
+        texto_pagina: Texto da página
+        numero_pagina: Número da página
+        dados_prova: Dados da prova
+        modelo_ia: "gemini" ou "deepseek"
     """
     if not texto_pagina or not texto_pagina.strip():
         return []
 
+    if modelo_ia == "deepseek":
+        return extrair_questoes_com_deepseek(
+            texto_pagina,
+            numero_pagina,
+            dados_prova
+        )
+    
+    # Padrão: Gemini
     modelo = obter_modelo_gemini_pdf()
 
     prompt = f"""
@@ -364,7 +469,6 @@ Aqui está o conteúdo da página {numero_pagina}:
     try:
         itens = carregar_json_questoes(response.text)
     except (json.JSONDecodeError, ValueError):
-        # Se não conseguir parsear, retorna lista vazia
         return []
 
     questoes = []
