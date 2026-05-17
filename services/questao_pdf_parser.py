@@ -18,10 +18,10 @@ LETRAS_ALTERNATIVAS = [
 GEMINI_PDF_MODEL = "gemini-2.0-flash"
 
 
-PROMPT_EXTRACAO_GEMINI = """
+PROMPT_EXTRACAO_PAGINA = """
 Você é um extrator especializado em provas de concurso.
 
-Extraia TODAS as questões da prova.
+Extraia TODAS as questões desta página.
 
 Para cada questão retorne:
 
@@ -44,6 +44,7 @@ REGRAS:
 - Ignore instruções da prova
 - NÃO invente informações
 - Retorne APENAS JSON válido
+- Se não encontrar nenhuma questão, retorne []
 """
 
 
@@ -66,16 +67,6 @@ def limpar_texto(texto):
     )
 
     return texto.strip()
-
-
-def juntar_texto_paginas(paginas):
-    textos = []
-
-    for pagina in paginas:
-        if pagina:
-            textos.append(str(pagina))
-
-    return "\n\n".join(textos)
 
 
 def obter_modelo_gemini_pdf():
@@ -339,16 +330,66 @@ def montar_questao_gemini(
             ensure_ascii=False
         ),
         "revisar": False,
-        "avisos": []
+        "avisos": [],
+        "pagina": item.get("pagina")
     }
 
     return questao
+
+
+def extrair_questoes_pagina_texto(
+    texto_pagina,
+    numero_pagina,
+    dados_prova
+):
+    """
+    Extrai questões de uma página usando texto simples.
+    Usa IA apenas para páginas com conteúdo potencial de questões.
+    """
+    if not texto_pagina or not texto_pagina.strip():
+        return []
+
+    modelo = obter_modelo_gemini_pdf()
+
+    prompt = f"""
+{PROMPT_EXTRACAO_PAGINA}
+
+Aqui está o conteúdo da página {numero_pagina}:
+
+{texto_pagina}
+"""
+
+    response = modelo.generate_content(prompt)
+
+    try:
+        itens = carregar_json_questoes(response.text)
+    except (json.JSONDecodeError, ValueError):
+        # Se não conseguir parsear, retorna lista vazia
+        return []
+
+    questoes = []
+
+    for indice, item in enumerate(itens, start=1):
+        if isinstance(item, dict) and item.get("enunciado"):
+            questao = montar_questao_gemini(
+                item,
+                indice,
+                dados_prova
+            )
+            questao["pagina"] = numero_pagina
+            questoes.append(questao)
+
+    return questoes
 
 
 def extrair_questoes_pdf_gemini(
     origem_pdf,
     dados_prova
 ):
+    """
+    Mantém compatibilidade com a versão anterior.
+    Processa o PDF inteiro (modo antigo).
+    """
     pdf_bytes = ler_bytes_pdf(origem_pdf)
 
     if not pdf_bytes:
@@ -359,7 +400,7 @@ def extrair_questoes_pdf_gemini(
     modelo = obter_modelo_gemini_pdf()
 
     response = modelo.generate_content([
-        PROMPT_EXTRACAO_GEMINI,
+        PROMPT_EXTRACAO_PAGINA,
         {
             "mime_type": "application/pdf",
             "data": pdf_bytes
