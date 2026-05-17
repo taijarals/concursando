@@ -1,7 +1,13 @@
+from io import BytesIO
+
 import streamlit as st
 
-from services.pdf_service import extrair_paginas_pdf, juntar_texto_paginas
+from database.supabase_client import supabase
+from services.pdf_service import extrair_paginas_pdf
 from services.prova_pdf_parser import identificar_dados_prova
+from services.questao_pdf_parser import (
+    extrair_questoes_pdf_gemini
+)
 
 
 def inicializar_estado_pdf():
@@ -15,13 +21,201 @@ def resetar_importacao_pdf():
         "pdf_paginas",
         "pdf_dados",
         "pdf_dados_confirmados",
-        "pdf_questoes"
+        "pdf_questoes",
+        "pdf_bytes",
+        "pdf_nome"
     ]
 
     for chave in chaves:
         st.session_state.pop(chave, None)
 
     st.session_state["pdf_etapa"] = "upload"
+
+
+def normalizar_nome(valor, padrao):
+    texto = str(valor or "").strip().upper()
+
+    if texto:
+        return texto
+
+    return padrao
+
+
+def buscar_ou_criar_registro(tabela, nome):
+    registro = (
+        supabase
+        .table(tabela)
+        .select("*")
+        .eq("nome", nome)
+        .execute()
+    )
+
+    if registro.data:
+        return registro.data[0]["id"]
+
+    novo = (
+        supabase
+        .table(tabela)
+        .insert({
+            "nome": nome
+        })
+        .execute()
+    )
+
+    return novo.data[0]["id"]
+
+
+def buscar_ou_criar_assunto(
+    nome,
+    materia_id
+):
+    registro = (
+        supabase
+        .table("concur_assuntos")
+        .select("*")
+        .eq("nome", nome)
+        .eq("materia_id", materia_id)
+        .execute()
+    )
+
+    if registro.data:
+        return registro.data[0]["id"]
+
+    novo = (
+        supabase
+        .table("concur_assuntos")
+        .insert({
+            "nome": nome,
+            "materia_id": materia_id
+        })
+        .execute()
+    )
+
+    return novo.data[0]["id"]
+
+
+def salvar_questao_pdf(
+    questao,
+    user
+):
+    materia_nome = normalizar_nome(
+        questao.get("materia"),
+        "GERAL"
+    )
+
+    assunto_nome = normalizar_nome(
+        questao.get("assunto"),
+        "A CLASSIFICAR"
+    )
+
+    banca_nome = normalizar_nome(
+        questao.get("banca"),
+        "NÃO INFORMADA"
+    )
+
+    materia_id = buscar_ou_criar_registro(
+        "concur_materias",
+        materia_nome
+    )
+
+    banca_id = buscar_ou_criar_registro(
+        "concur_bancas",
+        banca_nome
+    )
+
+    assunto_id = buscar_ou_criar_assunto(
+        assunto_nome,
+        materia_id
+    )
+
+    response = (
+        supabase
+        .table("concur_questoes")
+        .insert({
+            "tipo": questao.get(
+                "tipo",
+                "aberta"
+            ),
+            "enunciado": questao.get(
+                "enunciado",
+                ""
+            ),
+            "materia_id": materia_id,
+            "assunto_id": assunto_id,
+            "banca_id": banca_id,
+            "cargo": normalizar_nome(
+                questao.get("cargo"),
+                "NÃO INFORMADO"
+            ),
+            "dificuldade": questao.get(
+                "dificuldade",
+                3
+            ),
+            "explicacao_ia": questao.get(
+                "explicacao_ia"
+            ),
+            "resposta_correta": questao.get(
+                "resposta_correta",
+                ""
+            ),
+            "fonte": questao.get(
+                "fonte",
+                ""
+            ),
+            "criado_por": user.id
+        })
+        .execute()
+    )
+
+    questao_id = response.data[0]["id"]
+
+    if questao.get("tipo") != "multipla_escolha":
+        return questao_id
+
+    for alternativa in questao.get(
+        "alternativas",
+        []
+    ):
+        (
+            supabase
+            .table("concur_alternativas")
+            .insert({
+                "questao_id": questao_id,
+                "letra": alternativa.get(
+                    "letra"
+                ),
+                "texto": alternativa.get(
+                    "texto",
+                    ""
+                ),
+                "correta": alternativa.get(
+                    "correta",
+                    False
+                )
+            })
+            .execute()
+        )
+
+    return questao_id
+
+
+def importar_questoes_extraidas(
+    questoes,
+    user
+):
+    ids_importados = []
+
+    for questao in questoes:
+        questao_id = salvar_questao_pdf(
+            questao,
+            user
+        )
+
+        ids_importados.append(
+            questao_id
+        )
+
+    return ids_importados
 
 
 def render_upload_pdf():
@@ -33,34 +227,70 @@ def render_upload_pdf():
     )
 
     if not arquivo_pdf:
-        st.info("Envie um arquivo PDF para começar.")
+        st.info(
+            "Envie um arquivo PDF para começar."
+        )
         return
 
     if st.button("Analisar PDF"):
-        with st.spinner("Lendo PDF e identificando dados da prova..."):
+        with st.spinner(
+            "Lendo PDF e identificando dados da prova..."
+        ):
             try:
-                paginas = extrair_paginas_pdf(arquivo_pdf)
-                dados = identificar_dados_prova(paginas)
+                pdf_bytes = arquivo_pdf.getvalue()
 
-                st.session_state["pdf_paginas"] = paginas
-                st.session_state["pdf_dados"] = dados
-                st.session_state["pdf_etapa"] = "confirmar_dados"
+                paginas = extrair_paginas_pdf(
+                    BytesIO(pdf_bytes)
+                )
 
-                st.success("PDF analisado com sucesso!")
+                dados = identificar_dados_prova(
+                    paginas
+                )
+
+                st.session_state[
+                    "pdf_paginas"
+                ] = paginas
+
+                st.session_state[
+                    "pdf_bytes"
+                ] = pdf_bytes
+
+                st.session_state[
+                    "pdf_nome"
+                ] = arquivo_pdf.name
+
+                st.session_state[
+                    "pdf_dados"
+                ] = dados
+
+                st.session_state[
+                    "pdf_etapa"
+                ] = "confirmar_dados"
+
+                st.success(
+                    "PDF analisado com sucesso!"
+                )
+
                 st.rerun()
 
             except Exception as e:
-                st.error(f"Erro ao analisar PDF: {e}")
+                st.error(
+                    f"Erro ao analisar PDF: {e}"
+                )
 
 
 def render_confirmar_dados():
-    st.subheader("2. Confirmar dados da prova")
+    st.subheader(
+        "2. Confirmar dados da prova"
+    )
 
-    dados = st.session_state.get("pdf_dados", {})
+    dados = st.session_state.get(
+        "pdf_dados",
+        {}
+    )
 
     st.write(
-        "Confira os dados identificados automaticamente. "
-        "Se algum estiver errado, corrija antes de continuar."
+        "Confira os dados identificados automaticamente."
     )
 
     col1, col2 = st.columns(2)
@@ -73,129 +303,201 @@ def render_confirmar_dados():
 
         instituicao = st.text_input(
             "Instituição",
-            value=dados.get("instituicao", "")
+            value=dados.get(
+                "instituicao",
+                ""
+            )
         )
 
     with col2:
-        ano = st.text_input(
-            "Ano",
-            value=dados.get("ano", "")
-        )
-
         cargo = st.text_input(
             "Cargo",
             value=dados.get("cargo", "")
         )
 
-    st.caption(
-        f"Páginas lidas para identificar dados: "
-        f"{dados.get('paginas_lidas', '')}"
-    )
+        ano = st.text_input(
+            "Ano",
+            value=dados.get("ano", "")
+        )
 
-    with st.expander("Prévia do texto extraído"):
-        paginas = st.session_state.get("pdf_paginas", [])
+    if st.button("Continuar"):
+        st.session_state[
+            "pdf_dados_confirmados"
+        ] = {
+            "banca": banca.strip().upper(),
+            "ano": str(ano).strip(),
+            "instituicao": (
+                instituicao.strip().upper()
+            ),
+            "cargo": cargo.strip().upper()
+        }
 
-        if paginas:
-            limite_paginas = st.slider(
-                "Quantidade de páginas para prévia",
-                min_value=1,
-                max_value=len(paginas),
-                value=min(3, len(paginas))
-            )
+        st.session_state[
+            "pdf_etapa"
+        ] = "identificar_questoes"
 
-            texto_previa = juntar_texto_paginas(
-                paginas,
-                limite=limite_paginas
-            )
+        st.success("Dados confirmados!")
 
-            st.text_area(
-                "Texto extraído",
-                value=texto_previa,
-                height=300
-            )
-
-    col_voltar, col_confirmar = st.columns(2)
-
-    with col_voltar:
-        if st.button("🔄 Trocar PDF"):
-            resetar_importacao_pdf()
-            st.rerun()
-
-    with col_confirmar:
-        if st.button("✅ Confirmar dados da prova"):
-            if not banca or not ano or not instituicao or not cargo:
-                st.warning(
-                    "Preencha banca, ano, instituição e cargo antes de continuar."
-                )
-                return
-
-            st.session_state["pdf_dados_confirmados"] = {
-                "banca": banca.strip().upper(),
-                "ano": str(ano).strip(),
-                "instituicao": instituicao.strip().upper(),
-                "cargo": cargo.strip().upper()
-            }
-
-            st.session_state["pdf_etapa"] = "identificar_questoes"
-
-            st.success("Dados confirmados!")
-            st.rerun()
+        st.rerun()
 
 
 def render_identificar_questoes():
-    st.subheader("3. Identificar questões")
+    st.subheader(
+        "3. Identificar questões"
+    )
 
-    dados = st.session_state.get("pdf_dados_confirmados", {})
+    dados = st.session_state.get(
+        "pdf_dados_confirmados",
+        {}
+    )
 
     st.write("Dados confirmados:")
 
     st.json(dados)
 
     st.info(
-        "Na próxima etapa, o sistema vai usar esses dados como contexto "
-        "para tentar identificar as questões do PDF."
+        "O sistema enviará o PDF para o Gemini "
+        "e tentará extrair as questões."
     )
 
-    if st.button("🔎 Identificar questões do PDF"):
-        with st.spinner("Identificando questões..."):
+    if st.button(
+        "🔎 Identificar questões do PDF"
+    ):
+        with st.spinner(
+            "Identificando questões..."
+        ):
             try:
-                # Por enquanto, esta etapa ainda é um placeholder.
-                # No próximo passo vamos implementar a extração real.
-                st.session_state["pdf_questoes"] = []
-                st.session_state["pdf_etapa"] = "revisar_questoes"
+                pdf_bytes = st.session_state.get(
+                    "pdf_bytes"
+                )
 
-                st.success("Processo de identificação iniciado!")
+                if not pdf_bytes:
+                    st.warning(
+                        "PDF não encontrado."
+                    )
+                    return
+
+                questoes = (
+                    extrair_questoes_pdf_gemini(
+                        pdf_bytes,
+                        dados
+                    )
+                )
+
+                st.session_state[
+                    "pdf_questoes"
+                ] = questoes
+
+                st.session_state[
+                    "pdf_etapa"
+                ] = "revisar_questoes"
+
+                st.success(
+                    f"{len(questoes)} questões identificadas!"
+                )
+
                 st.rerun()
 
             except Exception as e:
-                st.error(f"Erro ao identificar questões: {e}")
+                st.error(
+                    f"Erro ao identificar questões: {e}"
+                )
+
+
+def render_dados_questao(questao):
+    st.write(
+        f"**Tipo:** {questao.get('tipo', '')}"
+    )
+
+    st.write(
+        f"**Enunciado:** "
+        f"{questao.get('enunciado', '')}"
+    )
+
+    alternativas = questao.get(
+        "alternativas",
+        []
+    )
+
+    if alternativas:
+        st.write("**Alternativas:**")
+
+        for alternativa in alternativas:
+            st.write(
+                f"{alternativa.get('letra')}) "
+                f"{alternativa.get('texto', '')}"
+            )
 
 
 def render_revisar_questoes():
     st.subheader("4. Revisar questões")
 
-    questoes = st.session_state.get("pdf_questoes", [])
+    questoes = st.session_state.get(
+        "pdf_questoes",
+        []
+    )
 
     if not questoes:
         st.warning(
-            "Nenhuma questão foi identificada ainda. "
-            "A extração real das questões será implementada no próximo passo."
+            "Nenhuma questão encontrada."
         )
-
-        if st.button("⬅️ Voltar para identificação"):
-            st.session_state["pdf_etapa"] = "identificar_questoes"
-            st.rerun()
 
         return
 
-    for indice, questao in enumerate(questoes, start=1):
-        with st.expander(f"Questão {indice}"):
-            st.write(questao)
+    st.success(
+        f"{len(questoes)} questões carregadas."
+    )
 
-    if st.button("💾 Importar questões para o banco"):
-        st.info(
-            "A importação para o banco será implementada depois da revisão."
-        )
+    for indice, questao in enumerate(
+        questoes,
+        start=1
+    ):
+        with st.expander(
+            f"Questão {indice}"
+        ):
+            render_dados_questao(
+                questao
+            )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button(
+            "⬅️ Voltar"
+        ):
+            st.session_state[
+                "pdf_etapa"
+            ] = "identificar_questoes"
+
+            st.rerun()
+
+    with col2:
+        if st.button(
+            "💾 Importar questões"
+        ):
+            try:
+                user = st.session_state.user
+
+                ids_importados = (
+                    importar_questoes_extraidas(
+                        questoes,
+                        user
+                    )
+                )
+
+                st.success(
+                    f"{len(ids_importados)} "
+                    f"questões importadas!"
+                )
+
+                resetar_importacao_pdf()
+
+                st.rerun()
+
+            except Exception as e:
+                st.error(
+                    f"Erro ao importar: {e}"
+                )
 
 
 def tela_importar_pdf():
@@ -204,17 +506,23 @@ def tela_importar_pdf():
     st.title("📄 Importar Prova PDF")
 
     st.write(
-        "Envie uma prova em PDF, confirme os dados identificados "
-        "e depois avance para a extração das questões."
+        "Envie uma prova em PDF "
+        "para extração das questões."
     )
 
-    if st.button("🧹 Reiniciar importação PDF"):
+    if st.button(
+        "🧹 Reiniciar importação PDF"
+    ):
         resetar_importacao_pdf()
+
         st.rerun()
 
     st.divider()
 
-    etapa = st.session_state.get("pdf_etapa", "upload")
+    etapa = st.session_state.get(
+        "pdf_etapa",
+        "upload"
+    )
 
     if etapa == "upload":
         render_upload_pdf()

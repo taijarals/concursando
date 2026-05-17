@@ -1,4 +1,9 @@
+import json
 import re
+
+import google.generativeai as genai
+
+from config import GEMINI_API_KEY
 
 
 LETRAS_ALTERNATIVAS = [
@@ -8,6 +13,38 @@ LETRAS_ALTERNATIVAS = [
     "D",
     "E"
 ]
+
+
+GEMINI_PDF_MODEL = "gemini-1.5-flash"
+
+
+PROMPT_EXTRACAO_GEMINI = """
+Você é um extrator especializado em provas de concurso.
+
+Extraia TODAS as questões da prova.
+
+Para cada questão retorne:
+
+{
+  "numero": int,
+  "tipo": "multipla_escolha" | "certo_errado" | "aberta",
+  "enunciado": str,
+  "alternativas": [
+      {
+        "letra": "A",
+        "texto": str
+      }
+  ]
+}
+
+REGRAS:
+- Ignore cabeçalhos
+- Ignore rodapés
+- Ignore número das páginas
+- Ignore instruções da prova
+- NÃO invente informações
+- Retorne APENAS JSON válido
+"""
 
 
 def limpar_texto(texto):
@@ -35,358 +72,316 @@ def juntar_texto_paginas(paginas):
     textos = []
 
     for pagina in paginas:
-        numero = pagina.get("numero", "")
-        texto = pagina.get("texto", "")
+        if pagina:
+            textos.append(str(pagina))
 
-        textos.append(
-            f"\n\n--- PÁGINA {numero} ---\n\n{texto}"
+    return "\n\n".join(textos)
+
+
+def obter_modelo_gemini_pdf():
+    if not GEMINI_API_KEY:
+        raise ValueError(
+            "GEMINI_API_KEY não configurada no ambiente."
         )
 
-    return limpar_texto(
-        "\n".join(textos)
+    genai.configure(
+        api_key=GEMINI_API_KEY
+    )
+
+    return genai.GenerativeModel(
+        GEMINI_PDF_MODEL
     )
 
 
-def encontrar_marcadores_questoes(texto):
-    padrao = re.compile(
-        r"""
-        (?imx)
-        ^
-        \s*
-        (?:
-            quest[aã]o
-            |
-            questão
+def ler_bytes_pdf(origem_pdf):
+    if isinstance(origem_pdf, bytes):
+        return origem_pdf
+
+    if isinstance(origem_pdf, bytearray):
+        return bytes(origem_pdf)
+
+    if hasattr(origem_pdf, "getvalue"):
+        return origem_pdf.getvalue()
+
+    if hasattr(origem_pdf, "read"):
+        posicao_atual = None
+
+        if hasattr(origem_pdf, "tell"):
+            posicao_atual = origem_pdf.tell()
+
+        pdf_bytes = origem_pdf.read()
+
+        if (
+            posicao_atual is not None
+            and hasattr(origem_pdf, "seek")
+        ):
+            origem_pdf.seek(posicao_atual)
+
+        return pdf_bytes
+
+    with open(origem_pdf, "rb") as arquivo:
+        return arquivo.read()
+
+
+def limpar_resposta_json(texto):
+    texto = (texto or "").strip()
+
+    if texto.startswith("```"):
+        texto = re.sub(
+            r"^```(?:json)?\s*",
+            "",
+            texto,
+            flags=re.IGNORECASE
         )
-        \s*
-        (?:n[ºo]\s*)?
-        (?P<numero>\d{1,4})
-        \b
-        |
-        ^
-        \s*
-        (?P<numero_simples>\d{1,4})
-        \s*
-        [\.\-\–\)]
-        \s+
-        (?=
-            [A-ZÁÉÍÓÚÂÊÔÃÕÇ]
-        )
-        """,
-    )
 
-    marcadores = []
-
-    for match in padrao.finditer(texto):
-        numero = (
-            match.group("numero")
-            or match.group("numero_simples")
+        texto = re.sub(
+            r"\s*```$",
+            "",
+            texto
         )
 
-        marcadores.append({
-            "inicio": match.start(),
-            "fim": match.end(),
-            "numero": int(numero)
-        })
+    inicio_lista = texto.find("[")
+    fim_lista = texto.rfind("]")
 
-    return marcadores
+    if (
+        inicio_lista != -1
+        and fim_lista != -1
+        and fim_lista > inicio_lista
+    ):
+        return texto[inicio_lista:fim_lista + 1]
 
+    inicio_objeto = texto.find("{")
+    fim_objeto = texto.rfind("}")
 
-def separar_blocos_questoes(texto):
-    texto = limpar_texto(texto)
+    if (
+        inicio_objeto != -1
+        and fim_objeto != -1
+        and fim_objeto > inicio_objeto
+    ):
+        return texto[inicio_objeto:fim_objeto + 1]
 
-    marcadores = encontrar_marcadores_questoes(texto)
-
-    blocos = []
-
-    for indice, marcador in enumerate(marcadores):
-        inicio = marcador["inicio"]
-
-        if indice + 1 < len(marcadores):
-            fim = marcadores[indice + 1]["inicio"]
-        else:
-            fim = len(texto)
-
-        bloco_texto = texto[inicio:fim].strip()
-
-        if bloco_texto:
-            blocos.append({
-                "numero": marcador["numero"],
-                "texto": bloco_texto
-            })
-
-    return blocos
+    return texto
 
 
-def encontrar_marcadores_alternativas(texto):
-    padrao = re.compile(
-        r"""
-        (?imx)
-        ^
-        \s*
-        \(?
-        (?P<letra>[A-Ea-e])
-        \)?
-        [\.\-\)]
-        \s+
-        """,
-    )
+def carregar_json_questoes(texto):
+    texto_json = limpar_resposta_json(texto)
 
-    marcadores = []
+    dados = json.loads(texto_json)
 
-    for match in padrao.finditer(texto):
-        letra = match.group("letra").upper()
+    if isinstance(dados, dict):
+        for chave in [
+            "questoes",
+            "questions",
+            "items"
+        ]:
+            if isinstance(dados.get(chave), list):
+                return dados[chave]
 
-        marcadores.append({
-            "inicio": match.start(),
-            "fim": match.end(),
-            "letra": letra
-        })
+        return [dados]
 
-    return marcadores
+    if not isinstance(dados, list):
+        raise ValueError(
+            "A resposta da IA não retornou uma lista de questões."
+        )
+
+    return dados
 
 
-def extrair_alternativas(texto):
-    marcadores = encontrar_marcadores_alternativas(texto)
-
-    alternativas = []
-
-    for indice, marcador in enumerate(marcadores):
-        inicio_texto = marcador["fim"]
-
-        if indice + 1 < len(marcadores):
-            fim_texto = marcadores[indice + 1]["inicio"]
-        else:
-            fim_texto = len(texto)
-
-        alternativa_texto = texto[inicio_texto:fim_texto].strip()
-
-        alternativas.append({
-            "letra": marcador["letra"],
-            "texto": limpar_texto(alternativa_texto),
-            "correta": False
-        })
-
-    alternativas_filtradas = []
+def normalizar_alternativas_gemini(alternativas):
+    alternativas_normalizadas = []
 
     letras_vistas = set()
 
-    for alternativa in alternativas:
-        letra = alternativa["letra"]
-        texto_alternativa = alternativa["texto"]
+    if not isinstance(alternativas, list):
+        return alternativas_normalizadas
 
-        if letra in letras_vistas:
+    for alternativa in alternativas:
+        if not isinstance(alternativa, dict):
             continue
+
+        letra = str(
+            alternativa.get("letra", "")
+        ).strip().upper()[:1]
+
+        texto = limpar_texto(
+            str(alternativa.get("texto", ""))
+        )
 
         if letra not in LETRAS_ALTERNATIVAS:
             continue
 
-        if not texto_alternativa:
+        if letra in letras_vistas:
+            continue
+
+        if not texto:
             continue
 
         letras_vistas.add(letra)
-        alternativas_filtradas.append(alternativa)
 
-    return alternativas_filtradas
+        alternativas_normalizadas.append({
+            "letra": letra,
+            "texto": texto,
+            "correta": bool(
+                alternativa.get("correta", False)
+            )
+        })
 
-
-def remover_alternativas_do_enunciado(texto):
-    marcadores = encontrar_marcadores_alternativas(texto)
-
-    if not marcadores:
-        return limpar_texto(texto)
-
-    primeiro_marcador = marcadores[0]
-
-    return limpar_texto(
-        texto[:primeiro_marcador["inicio"]]
-    )
+    return alternativas_normalizadas
 
 
-def remover_titulo_questao(texto, numero):
-    padroes = [
-        rf"(?im)^\s*quest[aã]o\s*(?:n[ºo]\s*)?{numero}\b\s*",
-        rf"(?im)^\s*questão\s*(?:n[ºo]\s*)?{numero}\b\s*",
-        rf"(?im)^\s*{numero}\s*[\.\-\–\)]\s*"
+def normalizar_tipo_gemini(
+    tipo,
+    alternativas,
+    enunciado
+):
+    tipo_normalizado = str(
+        tipo or ""
+    ).strip().lower()
+
+    tipos_validos = [
+        "multipla_escolha",
+        "certo_errado",
+        "aberta"
     ]
 
-    texto_limpo = texto
+    if tipo_normalizado in tipos_validos:
+        return tipo_normalizado
 
-    for padrao in padroes:
-        texto_limpo = re.sub(
-            padrao,
-            "",
-            texto_limpo,
-            count=1
+    return "multipla_escolha"
+
+
+def normalizar_dificuldade_gemini(valor):
+    try:
+        dificuldade = int(valor or 3)
+
+    except (
+        TypeError,
+        ValueError
+    ):
+        dificuldade = 3
+
+    if dificuldade < 1:
+        return 1
+
+    if dificuldade > 5:
+        return 5
+
+    return dificuldade
+
+
+def montar_questao_gemini(
+    item,
+    indice,
+    dados_prova
+):
+    if not isinstance(item, dict):
+        item = {}
+
+    try:
+        numero = int(
+            item.get("numero") or indice
         )
 
-    return limpar_texto(texto_limpo)
+    except (
+        TypeError,
+        ValueError
+    ):
+        numero = indice
 
-
-def parece_certo_errado(texto):
-    texto_upper = texto.upper()
-
-    indicios = [
-        "CERTO OU ERRADO",
-        "JULGUE",
-        "JULGAR",
-        "CERTO",
-        "ERRADO",
-        "Certo",
-        "Errado"
-    ]
-
-    return any(
-        indicio.upper() in texto_upper
-        for indicio in indicios
+    enunciado = limpar_texto(
+        str(item.get("enunciado", ""))
     )
 
-
-def identificar_tipo_questao(texto, alternativas):
-    if len(alternativas) >= 2:
-        return "multipla_escolha"
-
-    if parece_certo_errado(texto):
-        return "certo_errado"
-
-    return "aberta"
-
-
-def inferir_materia_assunto(texto):
-    return {
-        "materia": "GERAL",
-        "assunto": "A CLASSIFICAR"
-    }
-
-
-def montar_fonte(dados_prova):
-    partes = []
-
-    instituicao = dados_prova.get("instituicao")
-    banca = dados_prova.get("banca")
-    ano = dados_prova.get("ano")
-    cargo = dados_prova.get("cargo")
-
-    if instituicao:
-        partes.append(instituicao)
-
-    if banca:
-        partes.append(banca)
-
-    if cargo:
-        partes.append(cargo)
-
-    if ano:
-        partes.append(str(ano))
-
-    return " - ".join(partes)
-
-
-def validar_questao_extraida(questao):
-    avisos = []
-
-    if not questao["enunciado"]:
-        avisos.append("Enunciado vazio.")
-
-    if len(questao["enunciado"]) < 40:
-        avisos.append("Enunciado muito curto.")
-
-    if questao["tipo"] == "multipla_escolha":
-        quantidade_alternativas = len(
-            questao.get("alternativas", [])
+    alternativas = (
+        normalizar_alternativas_gemini(
+            item.get("alternativas", [])
         )
-
-        if quantidade_alternativas < 2:
-            avisos.append(
-                "Questão marcada como múltipla escolha, "
-                "mas tem menos de 2 alternativas."
-            )
-
-        letras = [
-            alternativa["letra"]
-            for alternativa in questao.get("alternativas", [])
-        ]
-
-        if len(letras) != len(set(letras)):
-            avisos.append("Alternativas com letras repetidas.")
-
-    if questao["tipo"] == "certo_errado":
-        if questao.get("alternativas"):
-            avisos.append(
-                "Questão certo/errado contém alternativas detectadas."
-            )
-
-    questao["avisos"] = avisos
-    questao["revisar"] = bool(avisos)
-
-    return questao
-
-
-def montar_questao_extraida(bloco, dados_prova):
-    numero = bloco["numero"]
-    texto_bloco = bloco["texto"]
-
-    texto_sem_titulo = remover_titulo_questao(
-        texto_bloco,
-        numero
     )
 
-    alternativas = extrair_alternativas(
-        texto_sem_titulo
+    tipo = normalizar_tipo_gemini(
+        item.get("tipo"),
+        alternativas,
+        enunciado
     )
-
-    enunciado = remover_alternativas_do_enunciado(
-        texto_sem_titulo
-    )
-
-    tipo = identificar_tipo_questao(
-        texto_sem_titulo,
-        alternativas
-    )
-
-    classificacao = inferir_materia_assunto(
-        texto_sem_titulo
-    )
-
-    if tipo != "multipla_escolha":
-        alternativas = []
 
     questao = {
         "numero": numero,
         "tipo": tipo,
         "enunciado": enunciado,
-        "materia": classificacao["materia"],
-        "assunto": classificacao["assunto"],
+        "materia": item.get("materia", ""),
+        "assunto": item.get("assunto", ""),
         "banca": dados_prova.get("banca", ""),
         "cargo": dados_prova.get("cargo", ""),
-        "instituicao": dados_prova.get("instituicao", ""),
+        "instituicao": dados_prova.get(
+            "instituicao",
+            ""
+        ),
         "ano": dados_prova.get("ano", ""),
-        "dificuldade": 3,
-        "fonte": montar_fonte(dados_prova),
-        "resposta_correta": "",
+        "dificuldade": (
+            normalizar_dificuldade_gemini(
+                item.get("dificuldade")
+            )
+        ),
+        "fonte": dados_prova.get(
+            "fonte",
+            ""
+        ),
+        "resposta_correta": item.get(
+            "resposta_correta",
+            ""
+        ),
         "alternativas": alternativas,
-        "explicacao_ia": None,
-        "texto_original": texto_bloco,
+        "explicacao_ia": item.get(
+            "explicacao_ia"
+        ),
+        "texto_original": json.dumps(
+            item,
+            ensure_ascii=False
+        ),
         "revisar": False,
         "avisos": []
     }
 
-    return validar_questao_extraida(questao)
+    return questao
 
 
-def extrair_questoes_pdf(paginas, dados_prova):
-    texto = juntar_texto_paginas(paginas)
+def extrair_questoes_pdf_gemini(
+    origem_pdf,
+    dados_prova
+):
+    pdf_bytes = ler_bytes_pdf(origem_pdf)
 
-    blocos = separar_blocos_questoes(texto)
+    if not pdf_bytes:
+        raise ValueError(
+            "PDF vazio ou inválido."
+        )
+
+    modelo = obter_modelo_gemini_pdf()
+
+    response = modelo.generate_content([
+        PROMPT_EXTRACAO_GEMINI,
+        {
+            "mime_type": "application/pdf",
+            "data": pdf_bytes
+        }
+    ])
+
+    itens = carregar_json_questoes(
+        response.text
+    )
 
     questoes = []
 
-    for bloco in blocos:
-        questao = montar_questao_extraida(
-            bloco,
-            dados_prova
+    for indice, item in enumerate(
+        itens,
+        start=1
+    ):
+        questoes.append(
+            montar_questao_gemini(
+                item,
+                indice,
+                dados_prova
+            )
         )
-
-        questoes.append(questao)
 
     return questoes
