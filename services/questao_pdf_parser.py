@@ -21,7 +21,10 @@ GEMINI_PDF_MODEL = "gemini-2.0-flash"
 PROMPT_EXTRACAO_PAGINA = """
 Você é um extrator especializado em provas de concurso.
 
-Extraia TODAS as questões desta página.
+Extraia TODAS as questões desta página, identificando:
+- O tipo de questão
+- A disciplina/matéria (ex: Português, Matemática, Direito Constitucional, etc)
+- O assunto específico dentro da disciplina (ex: Regência Verbal, Progressão Aritmética, Separação de Poderes, etc)
 
 Para cada questão retorne:
 
@@ -29,6 +32,8 @@ Para cada questão retorne:
   "numero": int,
   "tipo": "multipla_escolha" | "certo_errado" | "aberta",
   "enunciado": str,
+  "materia": "Nome da disciplina/matéria",
+  "assunto": "Assunto específico da questão",
   "alternativas": [
       {
         "letra": "A",
@@ -43,6 +48,8 @@ REGRAS:
 - Ignore número das páginas
 - Ignore instruções da prova
 - NÃO invente informações
+- SEMPRE tente identificar a matéria e assunto baseado no conteúdo da questão
+- Se não souber a matéria/assunto, deixe em branco (string vazia)
 - Retorne APENAS JSON válido
 - Se não encontrar nenhuma questão, retorne []
 """
@@ -315,12 +322,20 @@ def montar_questao_gemini(
         enunciado
     )
 
+    materia = limpar_texto(
+        str(item.get("materia", ""))
+    )
+
+    assunto = limpar_texto(
+        str(item.get("assunto", ""))
+    )
+
     questao = {
         "numero": numero,
         "tipo": tipo,
         "enunciado": enunciado,
-        "materia": item.get("materia", ""),
-        "assunto": item.get("assunto", ""),
+        "materia": materia,
+        "assunto": assunto,
         "banca": dados_prova.get("banca", ""),
         "cargo": dados_prova.get("cargo", ""),
         "instituicao": dados_prova.get(
