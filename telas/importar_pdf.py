@@ -51,6 +51,32 @@ def normalizar_nome(valor, padrao):
 
     return padrao
 
+def montar_tags_metadados(questao, dados_prova):
+    tags = []
+
+    for tag in questao.get("tags") or []:
+        tag_texto = str(tag or "").strip()
+
+        if tag_texto:
+            tags.append(tag_texto)
+
+    metadados = {
+        "cargo": questao.get("cargo") or dados_prova.get("cargo"),
+        "instituicao": dados_prova.get("instituicao"),
+        "ano": dados_prova.get("ano")
+    }
+
+    for chave, valor in metadados.items():
+        valor_texto = str(valor or "").strip().upper()
+
+        if valor_texto:
+            tag = f"{chave}: {valor_texto}"
+
+            if tag not in tags:
+                tags.append(tag)
+
+    return tags
+
 
 def buscar_ou_criar_registro(tabela, nome):
     registro = (
@@ -125,11 +151,6 @@ def salvar_questao_pdf(
         "NÃO INFORMADA"
     )
 
-    cargo_nome = normalizar_nome(
-        questao.get("cargo") or dados_prova.get("cargo"),
-        "NÃO INFORMADO"
-    )
-
     materia_id = buscar_ou_criar_registro(
         "concur_materias",
         materia_nome
@@ -160,7 +181,10 @@ def salvar_questao_pdf(
             "materia_id": materia_id,
             "assunto_id": assunto_id,
             "banca_id": banca_id,
-            "cargo": cargo_nome,
+             "tags": montar_tags_metadados(
+                questao,
+                dados_prova
+            ),
             "dificuldade": questao.get(
                 "dificuldade",
                 3

@@ -5,6 +5,30 @@ from database.supabase_client import supabase
 from services.openrouter_service import pesquisar_questoes
 
 
+def montar_tags_importacao(
+    instituicao,
+    cargo,
+    ano
+):
+    tags = []
+
+    metadados = {
+        "instituicao": instituicao,
+        "cargo": cargo,
+        "ano": ano
+    }
+
+    for chave, valor in metadados.items():
+        valor_texto = str(valor or "").strip().upper()
+
+        if valor_texto:
+            tags.append(
+                f"{chave}: {valor_texto}"
+            )
+
+    return tags
+
+
 # ==================================================
 # TELA
 # ==================================================
@@ -350,8 +374,12 @@ def tela_importacao():
                             "banca_id":
                                 banca_id,
 
-                            "cargo":
-                                cargo.upper(),
+                            "tags":
+                            montar_tags_importacao(
+                                instituicao,
+                                cargo,
+                                ano
+                            ),
 
                             "dificuldade":
                                 questao[
