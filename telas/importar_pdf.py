@@ -107,7 +107,8 @@ def buscar_ou_criar_assunto(
 
 def salvar_questao_pdf(
     questao,
-    user
+    user,
+    dados_prova
 ):
     materia_nome = normalizar_nome(
         questao.get("materia"),
@@ -122,6 +123,11 @@ def salvar_questao_pdf(
     banca_nome = normalizar_nome(
         questao.get("banca"),
         "NÃO INFORMADA"
+    )
+
+    cargo_nome = normalizar_nome(
+        questao.get("cargo") or dados_prova.get("cargo"),
+        "NÃO INFORMADO"
     )
 
     materia_id = buscar_ou_criar_registro(
@@ -154,10 +160,7 @@ def salvar_questao_pdf(
             "materia_id": materia_id,
             "assunto_id": assunto_id,
             "banca_id": banca_id,
-            "cargo": normalizar_nome(
-                questao.get("cargo"),
-                "NÃO INFORMADO"
-            ),
+            "cargo": cargo_nome,
             "dificuldade": questao.get(
                 "dificuldade",
                 3
@@ -212,14 +215,16 @@ def salvar_questao_pdf(
 
 def importar_questoes_extraidas(
     questoes,
-    user
+    user,
+    dados_prova
 ):
     ids_importados = []
 
     for questao in questoes:
         questao_id = salvar_questao_pdf(
             questao,
-            user
+            user,
+            dados_prova
         )
 
         ids_importados.append(
@@ -550,25 +555,7 @@ def render_processar_pagina():
             with st.expander(
                 f"Questão {idx}: {questao.get('enunciado', '')[:50]}..."
             ):
-                st.write(
-                    f"**Tipo:** {questao.get('tipo', '')}"
-                )
-                st.write(
-                    f"**Enunciado:** {questao.get('enunciado', '')}"
-                )
-
-                alternativas = questao.get(
-                    "alternativas",
-                    []
-                )
-
-                if alternativas:
-                    st.write("**Alternativas:**")
-                    for alternativa in alternativas:
-                        st.write(
-                            f"{alternativa.get('letra')}) "
-                            f"{alternativa.get('texto', '')}"
-                        )
+                render_dados_questao(questao)
 
     col1, col2, col3 = st.columns([1, 1, 1])
 
@@ -667,8 +654,15 @@ def render_dados_questao(questao):
     )
 
     st.write(
-        f"**Enunciado:** "
-        f"{questao.get('enunciado', '')}"
+        f"**Matéria:** {questao.get('materia', 'Não identificada')}"
+    )
+
+    st.write(
+        f"**Assunto:** {questao.get('assunto', 'Não identificado')}"
+    )
+
+    st.write(
+        f"**Enunciado:** {questao.get('enunciado', '')}"
     )
 
     if questao.get("pagina"):
@@ -715,11 +709,9 @@ def render_revisar_questoes():
         start=1
     ):
         with st.expander(
-            f"Questão {indice}"
+            f"Questão {indice}: {questao.get('materia', 'Geral')} - {questao.get('enunciado', '')[:50]}..."
         ):
-            render_dados_questao(
-                questao
-            )
+            render_dados_questao(questao)
 
     col1, col2 = st.columns(2)
 
@@ -748,11 +740,16 @@ def render_revisar_questoes():
         ):
             try:
                 user = st.session_state.user
+                dados_prova = st.session_state.get(
+                    "pdf_dados_confirmados",
+                    {}
+                )
 
                 ids_importados = (
                     importar_questoes_extraidas(
                         questoes,
-                        user
+                        user,
+                        dados_prova
                     )
                 )
 
