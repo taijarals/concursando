@@ -17,6 +17,9 @@ def inicializar_estado_pdf():
     
     if "pdf_modo_processamento" not in st.session_state:
         st.session_state["pdf_modo_processamento"] = "pagina_por_pagina"
+    
+    if "pdf_modelo_ia" not in st.session_state:
+        st.session_state["pdf_modelo_ia"] = "gemini"
 
 
 def resetar_importacao_pdf():
@@ -30,7 +33,8 @@ def resetar_importacao_pdf():
         "pdf_nome",
         "pdf_modo_processamento",
         "pdf_pagina_atual",
-        "pdf_questoes_por_pagina"
+        "pdf_questoes_por_pagina",
+        "pdf_modelo_ia"
     ]
 
     for chave in chaves:
@@ -347,16 +351,73 @@ def render_confirmar_dados():
 
         st.session_state[
             "pdf_etapa"
-        ] = "escolher_modo"
+        ] = "escolher_modelo"
 
         st.success("Dados confirmados!")
 
         st.rerun()
 
 
+def render_escolher_modelo():
+    """Permite escolher o modelo de IA a ser utilizado"""
+    st.subheader("3. Escolher Modelo de IA")
+
+    st.write(
+        "Qual modelo de IA você deseja usar para extrair as questões?"
+    )
+
+    modelo = st.radio(
+        "Modelo de IA",
+        options=[
+            "gemini",
+            "deepseek"
+        ],
+        format_func=lambda x: {
+            "gemini": "🔵 Gemini 2.0 Flash (Google)",
+            "deepseek": "🟣 Deepseek (OpenRouter)"
+        }[x],
+        key="modelo_ia_selector"
+    )
+
+    st.divider()
+
+    col_info1, col_info2 = st.columns(2)
+
+    with col_info1:
+        st.markdown("### 🔵 Gemini 2.0 Flash")
+        st.write(
+            "- Modelo: Google Gemini\n"
+            "- Requer: GEMINI_API_KEY\n"
+            "- Limite: Free tier limitado\n"
+            "- Velocidade: Rápido"
+        )
+
+    with col_info2:
+        st.markdown("### 🟣 Deepseek")
+        st.write(
+            "- Modelo: Deepseek via OpenRouter\n"
+            "- Requer: OPENROUTER_API_KEY\n"
+            "- Limite: Conforme plano\n"
+            "- Velocidade: Rápido"
+        )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("⬅️ Voltar"):
+            st.session_state["pdf_etapa"] = "confirmar_dados"
+            st.rerun()
+
+    with col2:
+        if st.button("Continuar"):
+            st.session_state["pdf_modelo_ia"] = modelo
+            st.session_state["pdf_etapa"] = "escolher_modo"
+            st.rerun()
+
+
 def render_escolher_modo():
     """Permite escolher entre modo página por página ou tudo de uma vez"""
-    st.subheader("3. Escolher modo de processamento")
+    st.subheader("4. Escolher modo de processamento")
 
     st.write(
         "Como você deseja processar as questões?"
@@ -379,7 +440,7 @@ def render_escolher_modo():
 
     with col1:
         if st.button("⬅️ Voltar"):
-            st.session_state["pdf_etapa"] = "confirmar_dados"
+            st.session_state["pdf_etapa"] = "escolher_modelo"
             st.rerun()
 
     with col2:
@@ -398,7 +459,7 @@ def render_escolher_modo():
 
 def render_processar_pagina():
     """Processa página por página"""
-    st.subheader("4. Processar Questões (Página por Página)")
+    st.subheader("5. Processar Questões (Página por Página)")
 
     paginas = st.session_state.get("pdf_paginas", [])
     pagina_atual = st.session_state.get("pdf_pagina_atual", 0)
@@ -409,6 +470,10 @@ def render_processar_pagina():
     dados = st.session_state.get(
         "pdf_dados_confirmados",
         {}
+    )
+    modelo_ia = st.session_state.get(
+        "pdf_modelo_ia",
+        "gemini"
     )
 
     if pagina_atual >= len(paginas):
@@ -421,7 +486,7 @@ def render_processar_pagina():
     texto_pagina = pagina["texto"]
 
     st.write(
-        f"Processando página **{numero_pagina}** de **{len(paginas)}**"
+        f"Processando página **{numero_pagina}** de **{len(paginas)}** usando **{modelo_ia.upper()}**"
     )
 
     progress = st.progress(
@@ -445,13 +510,14 @@ def render_processar_pagina():
 
     if numero_pagina not in questoes_por_pagina:
         with st.spinner(
-            f"Analisando página {numero_pagina}..."
+            f"Analisando página {numero_pagina} com {modelo_ia}..."
         ):
             try:
                 questoes = extrair_questoes_pagina_texto(
                     texto_pagina,
                     numero_pagina,
-                    dados
+                    dados,
+                    modelo_ia=modelo_ia
                 )
 
                 questoes_por_pagina[numero_pagina] = questoes
@@ -531,7 +597,7 @@ def render_processar_pagina():
 
 def render_processar_tudo():
     """Processa o PDF inteiro de uma vez (modo antigo)"""
-    st.subheader("4. Processar PDF Completo")
+    st.subheader("5. Processar PDF Completo")
 
     st.info(
         "⚠️ Modo 'Tudo de uma vez': O PDF inteiro será enviado para a IA. "
@@ -626,7 +692,7 @@ def render_dados_questao(questao):
 
 
 def render_revisar_questoes():
-    st.subheader("5. Revisar questões")
+    st.subheader("6. Revisar questões")
 
     questoes = st.session_state.get(
         "pdf_questoes",
@@ -734,6 +800,9 @@ def tela_importar_pdf():
 
     elif etapa == "confirmar_dados":
         render_confirmar_dados()
+
+    elif etapa == "escolher_modelo":
+        render_escolher_modelo()
 
     elif etapa == "escolher_modo":
         render_escolher_modo()
