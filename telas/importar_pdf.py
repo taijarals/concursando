@@ -687,7 +687,7 @@ def render_card_questao_editavel(questao, indice, numero_pagina, questoes_pagina
     
     # Título com indicador de aviso
     titulo_aviso = ""
-    if revisos:
+    if avisos:
         titulo_aviso = " 🚩"
     
     titulo_expander = f"Questão {indice}: {questao.get('materia', 'Geral')} - {questao.get('enunciado', '')[:50]}...{titulo_aviso}"
