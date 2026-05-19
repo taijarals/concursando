@@ -218,7 +218,7 @@ def tela_cadastro_assunto():
                         materia_atual_nome
                     ),
 
-                    key=f"materia_{assunto['id']}"
+                    key=f"edit_assunto_materia_{assunto['id']}"
                 )
 
             # =====================================
