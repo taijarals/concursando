@@ -146,7 +146,7 @@ def tela_cadastro_materia():
 
                     value=materia["nome"],
 
-                    key=f"materia_{materia['id']}"
+                    key=f"edit_materia_name_{materia['id']}"
                 )
 
             # =====================================
