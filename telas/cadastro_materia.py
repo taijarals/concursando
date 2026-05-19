@@ -161,7 +161,7 @@ def tela_cadastro_materia():
 
                     "💾 Salvar",
 
-                    key=f"save_{materia['id']}"
+                    key=f"save_materia_{materia['id']}"
                 ):
 
                     try:
@@ -252,7 +252,7 @@ def tela_cadastro_materia():
 
                     "🗑️ Excluir",
 
-                    key=f"delete_{materia['id']}"
+                    key=f"delete_materia_{materia['id']}"
                 ):
 
                     try:

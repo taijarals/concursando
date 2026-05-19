@@ -435,6 +435,12 @@ def montar_questao_gemini(
         # Se alternativa correta já foi informada nas alternativas, use-a
         marcada = any(a.get("correta") for a in questao.get("alternativas", []))
 
+        if marcada and not questao.get("resposta_correta"):
+            for a in questao["alternativas"]:
+                if a.get("correta"):
+                    questao["resposta_correta"] = a.get("letra")
+                    break
+
         # Se resposta_correta preenchida no item, marcar a alternativa correspondente
         if questao.get("resposta_correta") and not marcada:
             letra = str(questao.get("resposta_correta") or "").strip().upper()[:1]
