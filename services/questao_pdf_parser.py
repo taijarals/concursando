@@ -48,9 +48,12 @@ Para cada questão retorne:
   "alternativas": [
       {
         "letra": "A",
-        "texto": str
+        "texto": str,
+        "correta": bool (opcional, marcar se souber)
       }
-   ]
+   ],
+  "resposta_correta": "A" (se aplicável),
+  "explicacao_ia": "Breve justificativa (se possível)"
 }
 
 REGRAS:
@@ -298,6 +301,46 @@ def normalizar_dificuldade_gemini(valor):
     return dificuldade
 
 
+def prever_resposta_gemini(enunciado, alternativas, numero):
+    """
+    Usa o modelo Gemini para prever qual alternativa é mais provável correta
+    Retorna (letra, explicacao) ou (None, None) em caso de falha.
+    """
+    try:
+        modelo = obter_modelo_gemini_pdf()
+
+        alt_text = "\n".join([
+            f"{a['letra']}) {a['texto']}" for a in alternativas
+        ])
+
+        prompt = f"""
+Você é um especialista em resolver questões de concurso.
+Dada a seguinte questão e alternativas, indique qual alternativa é mais provavelmente a correta e forneça uma breve justificativa.
+Retorne APENAS um objeto JSON com as chaves: "resposta_prevista" (letra maiúscula) e "explicacao".
+
+Questão (nº {numero}):
+{enunciado}
+
+Alternativas:
+{alt_text}
+"""
+
+        resposta = modelo.generate_content(prompt)
+        texto = limpar_resposta_json(resposta.text)
+        dados = json.loads(texto)
+
+        letra = dados.get("resposta_prevista") or dados.get("resposta")
+        explic = dados.get("explicacao") or dados.get("justificativa") or dados.get("explicacao_ia")
+
+        if isinstance(letra, str):
+            letra = letra.strip().upper()[:1]
+
+        return letra, (explic or "").strip()
+
+    except Exception:
+        return None, None
+
+
 def montar_questao_gemini(
     item,
     indice,
@@ -386,6 +429,44 @@ def montar_questao_gemini(
         "avisos": avisos,
         "pagina": item.get("pagina")
     }
+
+    # Se for múltipla escolha, tente marcar a alternativa correta
+    if questao["tipo"] == "multipla_escolha":
+        # Se alternativa correta já foi informada nas alternativas, use-a
+        marcada = any(a.get("correta") for a in questao.get("alternativas", []))
+
+        # Se resposta_correta preenchida no item, marcar a alternativa correspondente
+        if questao.get("resposta_correta") and not marcada:
+            letra = str(questao.get("resposta_correta") or "").strip().upper()[:1]
+            for a in questao["alternativas"]:
+                a["correta"] = (a.get("letra") == letra)
+            marcada = True
+
+        # Caso não exista marcação, pedir ao modelo que preveja
+        if not marcada:
+            letra_prevista, explic = prever_resposta_gemini(
+                questao["enunciado"],
+                questao["alternativas"],
+                questao["numero"]
+            )
+
+            if letra_prevista:
+                questao["resposta_correta"] = letra_prevista
+                # marcar a alternativa correta
+                for a in questao["alternativas"]:
+                    a["correta"] = (a.get("letra") == letra_prevista)
+
+                # preencher explicação se não existir
+                if not questao.get("explicacao_ia"):
+                    questao["explicacao_ia"] = explic
+
+                # adicionar aviso indicando que IA sugeriu a resposta
+                questao["avisos"].append(
+                    f"IA indicou '{letra_prevista}' como resposta provável"
+                )
+
+                # Recomendar revisão humana
+                questao["revisar"] = True
 
     return questao
 
