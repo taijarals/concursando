@@ -162,7 +162,7 @@ def tela_cadastro_banca():
 
                     "💾 Salvar",
 
-                    key=f"save_{banca['id']}"
+                    key=f"save_banca_{banca['id']}"
                 ):
 
                     try:
@@ -254,7 +254,7 @@ def tela_cadastro_banca():
 
                     "🗑️ Excluir",
 
-                    key=f"delete_{banca['id']}"
+                    key=f"delete_banca_{banca['id']}"
                 ):
 
                     try:
