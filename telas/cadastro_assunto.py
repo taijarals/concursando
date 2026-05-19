@@ -249,7 +249,7 @@ def tela_cadastro_assunto():
 
                     "💾 Salvar",
 
-                    key=f"save_{assunto['id']}"
+                    key=f"save_assunto_{assunto['id']}"
                 ):
 
                     try:
@@ -354,7 +354,7 @@ def tela_cadastro_assunto():
 
                     "🗑️ Excluir",
 
-                    key=f"delete_{assunto['id']}"
+                    key=f"delete_assunto_{assunto['id']}"
                 ):
 
                     try:

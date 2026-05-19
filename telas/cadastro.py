@@ -4,6 +4,12 @@ from telas.cadastro_materia import tela_cadastro_materia
 from telas.cadastro_assunto import tela_cadastro_assunto
 from telas.cadastro_banca import tela_cadastro_banca
 from telas.cadastro_questao import tela_cadastro
+from telas.cadastrar_questoes_via_ia import (
+    tela_cadastrar_questoes_via_ia
+)
+from telas.cadastrar_questoes_via_pdf import (
+    tela_cadastrar_questoes_via_pdf
+)
 
 
 def tela_cadastros():
@@ -26,4 +32,21 @@ def tela_cadastros():
         tela_cadastro_banca()
 
     with aba_questao:
-        tela_cadastro()
+        (
+            aba_manual,
+            aba_ia,
+            aba_pdf
+        ) = st.tabs([
+            "✍️ Manual",
+            "🤖 Via IA",
+            "📄 Via PDF"
+        ])
+
+        with aba_manual:
+            tela_cadastro()
+
+        with aba_ia:
+            tela_cadastrar_questoes_via_ia()
+
+        with aba_pdf:
+            tela_cadastrar_questoes_via_pdf()
