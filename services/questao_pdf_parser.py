@@ -21,6 +21,17 @@ GEMINI_PDF_MODEL = "gemini-2.0-flash"
 PROMPT_EXTRACAO_PAGINA = """
 Você é um extrator especializado em provas de concurso.
 
+IMPORTANTE - Leia com atenção:
+- Algumas provas têm uma DIVISÓRIA VERTICAL no meio da página
+- Quando isso acontecer, SEMPRE leia PRIMEIRO o lado ESQUERDO da página
+- Depois leia o lado DIREITO da página
+- Processe como se fossem duas páginas separadas
+
+Identifique a estrutura da prova:
+- Uma MATÉRIA/DISCIPLINA (ex: Português, Matemática, Direito Constitucional) pode aparecer uma só vez como título
+- TODAS as questões que aparecem depois do título pertencem àquela matéria ATÉ que apareça um novo título de matéria
+- O título da matéria geralmente está destacado ou em uma linha separada
+
 Extraia TODAS as questões desta página, identificando:
 - O tipo de questão
 - A disciplina/matéria (ex: Português, Matemática, Direito Constitucional, etc)
@@ -39,7 +50,7 @@ Para cada questão retorne:
         "letra": "A",
         "texto": str
       }
-  ]
+   ]
 }
 
 REGRAS:
@@ -330,6 +341,13 @@ def montar_questao_gemini(
         str(item.get("assunto", ""))
     )
 
+    # Gerar avisos se necessário
+    avisos = gerar_avisos_questao(
+        item,
+        alternativas,
+        enunciado
+    )
+
     questao = {
         "numero": numero,
         "tipo": tipo,
@@ -364,12 +382,34 @@ def montar_questao_gemini(
             item,
             ensure_ascii=False
         ),
-        "revisar": False,
-        "avisos": [],
+        "revisar": len(avisos) > 0,
+        "avisos": avisos,
         "pagina": item.get("pagina")
     }
 
     return questao
+
+
+def gerar_avisos_questao(item, alternativas, enunciado):
+    """
+    Gera avisos para questões que podem ter problemas.
+    """
+    avisos = []
+
+    # Aviso se enunciado muito curto
+    if enunciado and len(enunciado.strip()) < 10:
+        avisos.append("Enunciado muito curto - revise se foi extraído corretamente")
+
+    # Aviso se faltam alternativas
+    if len(alternativas) < 2:
+        avisos.append(f"Poucas alternativas encontradas ({len(alternativas)} - esperado 4-5)")
+
+    # Aviso se matéria não foi identificada
+    materia = str(item.get("materia", "")).strip()
+    if not materia:
+        avisos.append("Matéria/disciplina não foi identificada - revise e complete manualmente")
+
+    return avisos
 
 
 def extrair_questoes_com_deepseek(
