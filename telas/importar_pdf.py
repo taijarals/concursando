@@ -785,6 +785,15 @@ def render_card_questao_editavel(questao, indice, numero_pagina, questoes_pagina
                 })
             
             questao["alternativas"] = alternativas_editadas
+
+            resposta_inferida = inferir_resposta_correta(
+                questao
+            )
+
+            if resposta_inferida:
+                questao["resposta_correta"] = (
+                    resposta_inferida
+                )
         
         # Campos adicionais
         col_extra1, col_extra2 = st.columns(2)
@@ -812,6 +821,22 @@ def render_card_questao_editavel(questao, indice, numero_pagina, questoes_pagina
         questao["enunciado"] = enunciado_editado
         questao["resposta_correta"] = resposta_correta_editada
         questao["explicacao_ia"] = explicacao_editada
+
+
+def inferir_resposta_correta(questao):
+    """Infere a letra correta com base nas alternativas marcadas."""
+    alternativas = questao.get("alternativas") or []
+
+    for alternativa in alternativas:
+        if alternativa.get("correta"):
+            letra = str(
+                alternativa.get("letra") or ""
+            ).strip().upper()[:1]
+
+            if letra:
+                return letra
+
+    return ""
 
 
 def render_dados_questao(questao):
@@ -981,6 +1006,15 @@ def render_revisar_questoes():
                     })
                 
                 questao["alternativas"] = alternativas_editadas
+
+                resposta_inferida = inferir_resposta_correta(
+                    questao
+                )
+
+                if resposta_inferida:
+                    questao["resposta_correta"] = (
+                        resposta_inferida
+                    )
             
             # Campos adicionais
             col_extra1, col_extra2 = st.columns(2)
