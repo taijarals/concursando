@@ -20,6 +20,9 @@ def inicializar_estado_pdf():
     
     if "pdf_modelo_ia" not in st.session_state:
         st.session_state["pdf_modelo_ia"] = "gemini"
+    
+    if "pdf_questao_editando" not in st.session_state:
+        st.session_state["pdf_questao_editando"] = None
 
 
 def resetar_importacao_pdf():
@@ -34,7 +37,8 @@ def resetar_importacao_pdf():
         "pdf_modo_processamento",
         "pdf_pagina_atual",
         "pdf_questoes_por_pagina",
-        "pdf_modelo_ia"
+        "pdf_modelo_ia",
+        "pdf_questao_editando"
     ]
 
     for chave in chaves:
@@ -274,7 +278,7 @@ def render_upload_pdf():
 
     st.info(
         "💡 **Dica:** O sistema processará o PDF página por página "
-        "para economizar tokens da IA. Você poderá revisar as questões "
+        "para economizar tokens da IA. Você poderá revisar e editar as questões "
         "encontradas em cada página antes de importar."
     )
 
@@ -576,10 +580,12 @@ def render_processar_pagina():
         st.subheader(f"Questões da Página {numero_pagina}")
 
         for idx, questao in enumerate(questoes_pagina, start=1):
-            with st.expander(
-                f"Questão {idx}: {questao.get('enunciado', '')[:50]}..."
-            ):
-                render_dados_questao(questao)
+            render_card_questao_editavel(
+                questao,
+                idx,
+                numero_pagina,
+                questoes_pagina
+            )
 
     col1, col2, col3 = st.columns([1, 1, 1])
 
@@ -672,7 +678,144 @@ def render_processar_tudo():
                     )
 
 
+def render_card_questao_editavel(questao, indice, numero_pagina, questoes_pagina):
+    """Renderiza um card de questão com opção de editar"""
+    
+    # Verificar se há avisos
+    avisos = questao.get("avisos", [])
+    revisar = questao.get("revisar", False)
+    
+    # Título com indicador de aviso
+    titulo_aviso = ""
+    if revisos:
+        titulo_aviso = " 🚩"
+    
+    titulo_expander = f"Questão {indice}: {questao.get('materia', 'Geral')} - {questao.get('enunciado', '')[:50]}...{titulo_aviso}"
+    
+    with st.expander(titulo_expander):
+        # Mostrar avisos se houver
+        if avisos:
+            with st.container(border=True):
+                st.warning("⚠️ **Avisos detectados:**")
+                for aviso in avisos:
+                    st.write(f"• {aviso}")
+                st.divider()
+        
+        # Formulário editável
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            materia_editada = st.text_input(
+                "Matéria/Disciplina",
+                value=questao.get("materia", ""),
+                key=f"materia_{numero_pagina}_{indice}"
+            )
+            
+            tipo_editado = st.selectbox(
+                "Tipo de questão",
+                options=["multipla_escolha", "certo_errado", "aberta"],
+                index=["multipla_escolha", "certo_errado", "aberta"].index(
+                    questao.get("tipo", "multipla_escolha")
+                ),
+                key=f"tipo_{numero_pagina}_{indice}"
+            )
+        
+        with col2:
+            assunto_editado = st.text_input(
+                "Assunto específico",
+                value=questao.get("assunto", ""),
+                key=f"assunto_{numero_pagina}_{indice}"
+            )
+            
+            dificuldade_editada = st.slider(
+                "Dificuldade",
+                min_value=1,
+                max_value=5,
+                value=questao.get("dificuldade", 3),
+                key=f"dificuldade_{numero_pagina}_{indice}"
+            )
+        
+        # Enunciado
+        enunciado_editado = st.text_area(
+            "Enunciado da questão",
+            value=questao.get("enunciado", ""),
+            height=100,
+            key=f"enunciado_{numero_pagina}_{indice}"
+        )
+        
+        # Alternativas (se múltipla escolha)
+        if tipo_editado == "multipla_escolha":
+            st.subheader("Alternativas")
+            alternativas_editadas = []
+            
+            alternativas = questao.get("alternativas", [])
+            
+            # Se não tiver alternativas, criar 5 vazias
+            if not alternativas:
+                alternativas = [
+                    {"letra": l, "texto": "", "correta": False}
+                    for l in ["A", "B", "C", "D", "E"]
+                ]
+            
+            for alt_idx, alternativa in enumerate(alternativas):
+                col_alt1, col_alt2, col_alt3 = st.columns([0.5, 3, 0.5])
+                
+                with col_alt1:
+                    st.write(f"**{alternativa.get('letra')})**")
+                
+                with col_alt2:
+                    texto_alt = st.text_input(
+                        f"Alternativa {alternativa.get('letra')}",
+                        value=alternativa.get("texto", ""),
+                        label_visibility="collapsed",
+                        key=f"alt_texto_{numero_pagina}_{indice}_{alt_idx}"
+                    )
+                
+                with col_alt3:
+                    correta = st.checkbox(
+                        "Correta",
+                        value=alternativa.get("correta", False),
+                        key=f"alt_correta_{numero_pagina}_{indice}_{alt_idx}"
+                    )
+                
+                alternativas_editadas.append({
+                    "letra": alternativa.get("letra"),
+                    "texto": texto_alt,
+                    "correta": correta
+                })
+            
+            questao["alternativas"] = alternativas_editadas
+        
+        # Campos adicionais
+        col_extra1, col_extra2 = st.columns(2)
+        
+        with col_extra1:
+            resposta_correta_editada = st.text_input(
+                "Resposta correta (se aplicável)",
+                value=questao.get("resposta_correta", ""),
+                key=f"resposta_{numero_pagina}_{indice}"
+            )
+        
+        with col_extra2:
+            explicacao_editada = st.text_area(
+                "Explicação/Gabarito",
+                value=questao.get("explicacao_ia", "") or "",
+                height=60,
+                key=f"explicacao_{numero_pagina}_{indice}"
+            )
+        
+        # Atualizar questão
+        questao["materia"] = materia_editada
+        questao["assunto"] = assunto_editado
+        questao["tipo"] = tipo_editado
+        questao["dificuldade"] = dificuldade_editada
+        questao["enunciado"] = enunciado_editado
+        questao["resposta_correta"] = resposta_correta_editada
+        questao["explicacao_ia"] = explicacao_editada
+
+
 def render_dados_questao(questao):
+    """Renderiza dados de uma questão (somente leitura)"""
     st.write(
         f"**Tipo:** {questao.get('tipo', '')}"
     )
@@ -710,7 +853,7 @@ def render_dados_questao(questao):
 
 
 def render_revisar_questoes():
-    st.subheader("6. Revisar questões")
+    st.subheader("6. Revisar e editar questões")
 
     questoes = st.session_state.get(
         "pdf_questoes",
@@ -727,15 +870,135 @@ def render_revisar_questoes():
     st.success(
         f"{len(questoes)} questões carregadas."
     )
+    
+    st.info(
+        "💡 Você pode editar qualquer informação das questões abaixo "
+        "antes de importar para o banco de dados."
+    )
 
     for indice, questao in enumerate(
         questoes,
         start=1
     ):
-        with st.expander(
-            f"Questão {indice}: {questao.get('materia', 'Geral')} - {questao.get('enunciado', '')[:50]}..."
-        ):
-            render_dados_questao(questao)
+        avisos = questao.get("avisos", [])
+        revisar = questao.get("revisar", False)
+        
+        titulo_aviso = ""
+        if revisar:
+            titulo_aviso = " 🚩"
+        
+        titulo = f"Questão {indice}: {questao.get('materia', 'Geral')} - {questao.get('enunciado', '')[:50]}...{titulo_aviso}"
+        
+        with st.expander(titulo):
+            # Mostrar avisos se houver
+            if avisos:
+                with st.container(border=True):
+                    st.warning("⚠️ **Avisos detectados:**")
+                    for aviso in avisos:
+                        st.write(f"• {aviso}")
+                    st.divider()
+            
+            # Formulário editável
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                questao["materia"] = st.text_input(
+                    "Matéria/Disciplina",
+                    value=questao.get("materia", ""),
+                    key=f"revisar_materia_{indice}"
+                )
+                
+                questao["tipo"] = st.selectbox(
+                    "Tipo de questão",
+                    options=["multipla_escolha", "certo_errado", "aberta"],
+                    index=["multipla_escolha", "certo_errado", "aberta"].index(
+                        questao.get("tipo", "multipla_escolha")
+                    ),
+                    key=f"revisar_tipo_{indice}"
+                )
+            
+            with col2:
+                questao["assunto"] = st.text_input(
+                    "Assunto específico",
+                    value=questao.get("assunto", ""),
+                    key=f"revisar_assunto_{indice}"
+                )
+                
+                questao["dificuldade"] = st.slider(
+                    "Dificuldade",
+                    min_value=1,
+                    max_value=5,
+                    value=questao.get("dificuldade", 3),
+                    key=f"revisar_dificuldade_{indice}"
+                )
+            
+            # Enunciado
+            questao["enunciado"] = st.text_area(
+                "Enunciado da questão",
+                value=questao.get("enunciado", ""),
+                height=100,
+                key=f"revisar_enunciado_{indice}"
+            )
+            
+            # Alternativas (se múltipla escolha)
+            if questao.get("tipo") == "multipla_escolha":
+                st.subheader("Alternativas")
+                alternativas = questao.get("alternativas", [])
+                
+                # Se não tiver alternativas, criar 5 vazias
+                if not alternativas:
+                    alternativas = [
+                        {"letra": l, "texto": "", "correta": False}
+                        for l in ["A", "B", "C", "D", "E"]
+                    ]
+                
+                alternativas_editadas = []
+                for alt_idx, alternativa in enumerate(alternativas):
+                    col_alt1, col_alt2, col_alt3 = st.columns([0.5, 3, 0.5])
+                    
+                    with col_alt1:
+                        st.write(f"**{alternativa.get('letra')})**")
+                    
+                    with col_alt2:
+                        texto_alt = st.text_input(
+                            f"Alternativa {alternativa.get('letra')}",
+                            value=alternativa.get("texto", ""),
+                            label_visibility="collapsed",
+                            key=f"revisar_alt_texto_{indice}_{alt_idx}"
+                        )
+                    
+                    with col_alt3:
+                        correta = st.checkbox(
+                            "Correta",
+                            value=alternativa.get("correta", False),
+                            key=f"revisar_alt_correta_{indice}_{alt_idx}"
+                        )
+                    
+                    alternativas_editadas.append({
+                        "letra": alternativa.get("letra"),
+                        "texto": texto_alt,
+                        "correta": correta
+                    })
+                
+                questao["alternativas"] = alternativas_editadas
+            
+            # Campos adicionais
+            col_extra1, col_extra2 = st.columns(2)
+            
+            with col_extra1:
+                questao["resposta_correta"] = st.text_input(
+                    "Resposta correta (se aplicável)",
+                    value=questao.get("resposta_correta", ""),
+                    key=f"revisar_resposta_{indice}"
+                )
+            
+            with col_extra2:
+                questao["explicacao_ia"] = st.text_area(
+                    "Explicação/Gabarito",
+                    value=questao.get("explicacao_ia", "") or "",
+                    height=60,
+                    key=f"revisar_explicacao_{indice}"
+                )
 
     col1, col2 = st.columns(2)
 
