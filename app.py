@@ -6,10 +6,10 @@ from components.sidebar import render_sidebar
 
 from telas.dashboard import tela_dashboard
 from telas.resolver_questoes import tela_resolver
-from telas.importar_questoes import tela_importacao
+from telas.cadastrar_questoes_via_ia import tela_cadastrar_questoes_via_ia
 from telas.listar_questoes import tela_listar_questoes
 from telas.cadastro import tela_cadastros
-from telas.importar_pdf import tela_importar_pdf
+from telas.cadastrar_questoes_via_pdf import tela_cadastrar_questoes_via_pdf
 
 
 st.set_page_config(
@@ -54,10 +54,10 @@ else:
         tela_resolver()
         
     elif menu == "Importar Questões":
-        tela_importacao()
+        tela_cadastrar_questoes_via_ia()
     
     elif menu == "Listar Questões":
         tela_listar_questoes()
 
     elif menu == "Importar PDF":
-        tela_importar_pdf()
+        tela_cadastrar_questoes_via_pdf()
