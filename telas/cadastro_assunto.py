@@ -233,7 +233,7 @@ def tela_cadastro_assunto():
 
                     value=assunto["nome"],
 
-                    key=f"assunto_{assunto['id']}"
+                    key=f"edit_assunto_name_{assunto['id']}"
                 )
 
             # =====================================
