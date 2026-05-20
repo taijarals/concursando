@@ -55,7 +55,8 @@ def tela_cadastro():
             "multipla_escolha",
             "certo_errado",
             "aberta"
-        ]
+        ],
+        key="manual_tipo"
     )
 
     # ==================================================

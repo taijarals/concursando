@@ -75,7 +75,8 @@ def tela_cadastrar_questoes_via_ia():
             "multipla_escolha",
             "certo_errado",
             "aberta"
-        ]
+        ],
+        key="ia_tipo"
     )
 
     # =====================================
