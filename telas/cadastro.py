@@ -29,35 +29,22 @@ def tela_cadastros():
 
     st.title("🗂️ Cadastros")
 
-    # =====================================
-    # CONTROLE DE SUBTELA
-    # =====================================
-
-    if (
-        "cadastro_questao_tela"
-        not in st.session_state
-    ):
-
-        st.session_state[
-            "cadastro_questao_tela"
-        ] = "menu"
-
-    # =====================================
-    # ABAS PRINCIPAIS
-    # =====================================
-
     (
         aba_materia,
         aba_assunto,
         aba_banca,
-        aba_questao
+        aba_questao_manual,
+        aba_questao_ia,
+        aba_questao_pdf
 
     ) = st.tabs([
 
         "📚 Matérias",
         "📝 Assuntos",
         "🏛️ Bancas",
-        "➕ Questões"
+        "✍️ Questões Manual",
+        "🤖 Questões IA",
+        "📄 Questões PDF"
     ])
 
     # =====================================
@@ -85,116 +72,25 @@ def tela_cadastros():
         tela_cadastro_banca()
 
     # =====================================
-    # QUESTÕES
+    # QUESTÕES MANUAL
     # =====================================
 
-    with aba_questao:
+    with aba_questao_manual:
 
-        tela_atual = st.session_state[
-            "cadastro_questao_tela"
-        ]
+        tela_cadastro()
 
-        # ===============================
-        # MENU
-        # ===============================
+    # =====================================
+    # QUESTÕES IA
+    # =====================================
 
-        if tela_atual == "menu":
+    with aba_questao_ia:
 
-            st.subheader(
-                "Selecione o tipo de cadastro"
-            )
+        tela_cadastrar_questoes_via_ia()
 
-            opcao = st.selectbox(
+    # =====================================
+    # QUESTÕES PDF
+    # =====================================
 
-                "Tipo de Importação",
+    with aba_questao_pdf:
 
-                [
-                    "✍️ Manual",
-                    "🤖 Via IA",
-                    "📄 Via PDF"
-                ],
-
-                key="menu_tipo_questao"
-            )
-
-            if st.button(
-                "Abrir",
-                key="abrir_tipo_questao"
-            ):
-
-                if opcao == "✍️ Manual":
-
-                    st.session_state[
-                        "cadastro_questao_tela"
-                    ] = "manual"
-
-                elif opcao == "🤖 Via IA":
-
-                    st.session_state[
-                        "cadastro_questao_tela"
-                    ] = "ia"
-
-                elif opcao == "📄 Via PDF":
-
-                    st.session_state[
-                        "cadastro_questao_tela"
-                    ] = "pdf"
-
-                st.rerun()
-
-        # ===============================
-        # MANUAL
-        # ===============================
-
-        elif tela_atual == "manual":
-
-            if st.button(
-                "← Voltar",
-                key="voltar_manual"
-            ):
-
-                st.session_state[
-                    "cadastro_questao_tela"
-                ] = "menu"
-
-                st.rerun()
-
-            tela_cadastro()
-
-        # ===============================
-        # IA
-        # ===============================
-
-        elif tela_atual == "ia":
-
-            if st.button(
-                "← Voltar",
-                key="voltar_ia"
-            ):
-
-                st.session_state[
-                    "cadastro_questao_tela"
-                ] = "menu"
-
-                st.rerun()
-
-            tela_cadastrar_questoes_via_ia()
-
-        # ===============================
-        # PDF
-        # ===============================
-
-        elif tela_atual == "pdf":
-
-            if st.button(
-                "← Voltar",
-                key="voltar_pdf"
-            ):
-
-                st.session_state[
-                    "cadastro_questao_tela"
-                ] = "menu"
-
-                st.rerun()
-
-            tela_cadastrar_questoes_via_pdf()
+        tela_cadastrar_questoes_via_pdf()
