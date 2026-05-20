@@ -6,8 +6,6 @@ from database.supabase_client import supabase
 
 def tela_cadastro_materia():
 
-    st.title("📚 Gestão de Matérias")
-
     # =====================================
     # TOOLBAR
     # =====================================
