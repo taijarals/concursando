@@ -23,7 +23,7 @@ def tela_cadastro_materia():
 
         if st.button(
             "➕ Nova Matéria",
-            use_container_width=True
+            width='stretch'
         ):
             st.session_state["abrir_modal"] = True
 
@@ -85,7 +85,7 @@ def tela_cadastro_materia():
 
         df,
 
-        use_container_width=True,
+        width='stretch',
 
         hide_index=True
     )
@@ -123,7 +123,7 @@ def tela_cadastro_materia():
 
         if st.button(
             "💾 Atualizar",
-            use_container_width=True
+            width='stretch'
         ):
 
             (
@@ -163,7 +163,7 @@ def tela_cadastro_materia():
 
             type="primary",
 
-            use_container_width=True
+            width='stretch'
         ):
 
             (
