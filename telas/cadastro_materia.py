@@ -1,14 +1,39 @@
+import pandas as pd
 import streamlit as st
+
 from database.supabase_client import supabase
 
 
 def tela_cadastro_materia():
 
-    st.title("📚 Matérias")
+    st.title("📚 Gestão de Matérias")
 
-    # ==========================================
-    # BUSCAR DADOS
-    # ==========================================
+    # =====================================
+    # TOOLBAR
+    # =====================================
+
+    top1, top2 = st.columns([8,2])
+
+    with top1:
+
+        busca = st.text_input(
+            "Buscar matéria",
+            placeholder="Digite o nome..."
+        )
+
+    with top2:
+
+        if st.button(
+            "➕ Nova Matéria",
+            use_container_width=True
+        ):
+            st.session_state["abrir_modal"] = True
+
+    st.divider()
+
+    # =====================================
+    # DADOS
+    # =====================================
 
     response = (
         supabase
@@ -20,86 +45,9 @@ def tela_cadastro_materia():
 
     materias = response.data
 
-    # ==========================================
-    # MÉTRICAS
-    # ==========================================
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.metric(
-            "Total de matérias",
-            len(materias)
-        )
-
-    with col2:
-        st.metric(
-            "Status",
-            "Ativo"
-        )
-
-    # ==========================================
-    # NOVA MATÉRIA
-    # ==========================================
-
-    with st.expander("➕ Nova matéria"):
-
-        with st.form("nova_materia"):
-
-            nome = st.text_input(
-                "Nome da matéria"
-            )
-
-            salvar = st.form_submit_button(
-                "Salvar"
-            )
-
-        if salvar:
-
-            nome = nome.upper().strip()
-
-            if nome:
-
-                existe = (
-                    supabase
-                    .table("concur_materias")
-                    .select("*")
-                    .eq("nome", nome)
-                    .execute()
-                )
-
-                if existe.data:
-
-                    st.warning(
-                        "Matéria já existe."
-                    )
-
-                else:
-
-                    (
-                        supabase
-                        .table("concur_materias")
-                        .insert({
-                            "nome": nome
-                        })
-                        .execute()
-                    )
-
-                    st.success(
-                        "Matéria cadastrada!"
-                    )
-
-                    st.rerun()
-
-    st.divider()
-
-    # ==========================================
-    # BUSCA
-    # ==========================================
-
-    busca = st.text_input(
-        "🔍 Buscar matéria"
-    )
+    # =====================================
+    # FILTRO
+    # =====================================
 
     if busca:
 
@@ -111,9 +59,9 @@ def tela_cadastro_materia():
             in m["nome"].upper()
         ]
 
-    # ==========================================
-    # LISTA
-    # ==========================================
+    # =====================================
+    # SEM DADOS
+    # =====================================
 
     if not materias:
 
@@ -123,112 +71,116 @@ def tela_cadastro_materia():
 
         return
 
-    for materia in materias:
+    # =====================================
+    # DATAFRAME
+    # =====================================
 
-        with st.container(border=True):
+    df = pd.DataFrame(materias)
 
-            col1, col2, col3 = st.columns(
-                [6, 2, 2]
+    df = df.rename(columns={
+
+        "id": "ID",
+        "nome": "Matéria"
+    })
+
+    st.dataframe(
+
+        df,
+
+        use_container_width=True,
+
+        hide_index=True
+    )
+
+    # =====================================
+    # AÇÕES
+    # =====================================
+
+    st.subheader("Ações")
+
+    materia_selecionada = st.selectbox(
+
+        "Selecionar matéria",
+
+        options=df["ID"],
+
+        format_func=lambda x:
+
+            df[df["ID"] == x]
+            ["Matéria"]
+            .values[0]
+    )
+
+    col1, col2 = st.columns(2)
+
+    # =====================================
+    # EDITAR
+    # =====================================
+
+    with col1:
+
+        novo_nome = st.text_input(
+            "Novo nome"
+        )
+
+        if st.button(
+            "💾 Atualizar",
+            use_container_width=True
+        ):
+
+            (
+                supabase
+                .table("concur_materias")
+                .update({
+
+                    "nome":
+                        novo_nome.upper()
+                })
+                .eq(
+                    "id",
+                    materia_selecionada
+                )
+                .execute()
             )
 
-            # ==========================
-            # NOME
-            # ==========================
+            st.success(
+                "Atualizado!"
+            )
 
-            with col1:
+            st.rerun()
 
-                st.subheader(
-                    f"📘 {materia['nome']}"
+    # =====================================
+    # DELETE
+    # =====================================
+
+    with col2:
+
+        st.write("")
+
+        st.write("")
+
+        if st.button(
+
+            "🗑️ Excluir",
+
+            type="primary",
+
+            use_container_width=True
+        ):
+
+            (
+                supabase
+                .table("concur_materias")
+                .delete()
+                .eq(
+                    "id",
+                    materia_selecionada
                 )
+                .execute()
+            )
 
-            # ==========================
-            # EDITAR
-            # ==========================
+            st.success(
+                "Excluído!"
+            )
 
-            with col2:
-
-                if st.button(
-                    "✏️ Editar",
-                    key=f"edit_{materia['id']}"
-                ):
-
-                    st.session_state[
-                        "editar_id"
-                    ] = materia["id"]
-
-            # ==========================
-            # EXCLUIR
-            # ==========================
-
-            with col3:
-
-                if st.button(
-                    "🗑️ Excluir",
-                    key=f"delete_{materia['id']}"
-                ):
-
-                    (
-                        supabase
-                        .table("concur_materias")
-                        .delete()
-                        .eq(
-                            "id",
-                            materia["id"]
-                        )
-                        .execute()
-                    )
-
-                    st.success(
-                        "Excluído!"
-                    )
-
-                    st.rerun()
-
-            # ==========================
-            # ÁREA DE EDIÇÃO
-            # ==========================
-
-            if st.session_state.get(
-                "editar_id"
-            ) == materia["id"]:
-
-                novo_nome = st.text_input(
-
-                    "Novo nome",
-
-                    value=materia["nome"],
-
-                    key=f"novo_{materia['id']}"
-                )
-
-                if st.button(
-
-                    "💾 Salvar alteração",
-
-                    key=f"save_{materia['id']}"
-                ):
-
-                    (
-                        supabase
-                        .table("concur_materias")
-                        .update({
-
-                            "nome":
-                                novo_nome.upper()
-                        })
-                        .eq(
-                            "id",
-                            materia["id"]
-                        )
-                        .execute()
-                    )
-
-                    st.success(
-                        "Atualizado!"
-                    )
-
-                    st.session_state[
-                        "editar_id"
-                    ] = None
-
-                    st.rerun()
+            st.rerun()
