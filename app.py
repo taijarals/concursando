@@ -52,12 +52,6 @@ else:
 
     elif menu == "Resolver Questões":
         tela_resolver()
-        
-    elif menu == "Importar Questões":
-        tela_cadastrar_questoes_via_ia()
     
     elif menu == "Listar Questões":
         tela_listar_questoes()
-
-    elif menu == "Importar PDF":
-        tela_cadastrar_questoes_via_pdf()
