@@ -12,10 +12,39 @@ from telas.cadastro_banca import (
     tela_cadastro_banca
 )
 
+from telas.cadastro_questao import (
+    tela_cadastro
+)
+
+from telas.cadastrar_questoes_via_ia import (
+    tela_cadastrar_questoes_via_ia
+)
+
+from telas.cadastrar_questoes_via_pdf import (
+    tela_cadastrar_questoes_via_pdf
+)
+
 
 def tela_cadastros():
 
     st.title("🗂️ Cadastros")
+
+    # =====================================
+    # CONTROLE DE SUBTELA
+    # =====================================
+
+    if (
+        "cadastro_questao_tela"
+        not in st.session_state
+    ):
+
+        st.session_state[
+            "cadastro_questao_tela"
+        ] = "menu"
+
+    # =====================================
+    # ABAS PRINCIPAIS
+    # =====================================
 
     (
         aba_materia,
@@ -61,44 +90,111 @@ def tela_cadastros():
 
     with aba_questao:
 
-        st.subheader(
-            "Cadastro de Questões"
-        )
+        tela_atual = st.session_state[
+            "cadastro_questao_tela"
+        ]
 
-        opcao = st.selectbox(
+        # ===============================
+        # MENU
+        # ===============================
 
-            "Selecione o tipo",
+        if tela_atual == "menu":
 
-            [
-                "✍️ Manual",
-                "🤖 Via IA",
-                "📄 Via PDF"
-            ],
+            st.subheader(
+                "Selecione o tipo de cadastro"
+            )
 
-            key="tipo_cadastro_questao"
-        )
+            opcao = st.selectbox(
 
-        if st.button(
-            "Abrir",
-            key="abrir_cadastro_questao"
-        ):
+                "Tipo de Importação",
 
-            if opcao == "✍️ Manual":
+                [
+                    "✍️ Manual",
+                    "🤖 Via IA",
+                    "📄 Via PDF"
+                ],
+
+                key="menu_tipo_questao"
+            )
+
+            if st.button(
+                "Abrir",
+                key="abrir_tipo_questao"
+            ):
+
+                if opcao == "✍️ Manual":
+
+                    st.session_state[
+                        "cadastro_questao_tela"
+                    ] = "manual"
+
+                elif opcao == "🤖 Via IA":
+
+                    st.session_state[
+                        "cadastro_questao_tela"
+                    ] = "ia"
+
+                elif opcao == "📄 Via PDF":
+
+                    st.session_state[
+                        "cadastro_questao_tela"
+                    ] = "pdf"
+
+                st.rerun()
+
+        # ===============================
+        # MANUAL
+        # ===============================
+
+        elif tela_atual == "manual":
+
+            if st.button(
+                "← Voltar",
+                key="voltar_manual"
+            ):
 
                 st.session_state[
-                    "pagina"
-                ] = "cadastro_manual"
+                    "cadastro_questao_tela"
+                ] = "menu"
 
-            elif opcao == "🤖 Via IA":
+                st.rerun()
+
+            tela_cadastro()
+
+        # ===============================
+        # IA
+        # ===============================
+
+        elif tela_atual == "ia":
+
+            if st.button(
+                "← Voltar",
+                key="voltar_ia"
+            ):
 
                 st.session_state[
-                    "pagina"
-                ] = "cadastro_ia"
+                    "cadastro_questao_tela"
+                ] = "menu"
 
-            elif opcao == "📄 Via PDF":
+                st.rerun()
+
+            tela_cadastrar_questoes_via_ia()
+
+        # ===============================
+        # PDF
+        # ===============================
+
+        elif tela_atual == "pdf":
+
+            if st.button(
+                "← Voltar",
+                key="voltar_pdf"
+            ):
 
                 st.session_state[
-                    "pagina"
-                ] = "cadastro_pdf"
+                    "cadastro_questao_tela"
+                ] = "menu"
 
-            st.rerun()
+                st.rerun()
+
+            tela_cadastrar_questoes_via_pdf()
