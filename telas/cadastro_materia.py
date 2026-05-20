@@ -1,104 +1,14 @@
 import streamlit as st
-
 from database.supabase_client import supabase
 
 
-# ==================================================
-# CADASTRO DE MATÉRIAS
-# ==================================================
-
 def tela_cadastro_materia():
 
-    #st.title("📚 Cadastro de Matérias")
+    st.title("📚 Matérias")
 
-    # ==================================================
-    # NOVA MATÉRIA
-    # ==================================================
-
-    with st.form("form_materia"):
-
-        nome = st.text_input(
-            "Nome da Matéria"
-        )
-
-        salvar = st.form_submit_button(
-            "Salvar Matéria"
-        )
-
-    # ==================================================
-    # SALVAR
-    # ==================================================
-
-    if salvar:
-
-        if not nome:
-
-            st.warning(
-                "Informe o nome."
-            )
-
-            return
-
-        try:
-
-            # =====================================
-            # CAIXA ALTA
-            # =====================================
-
-            nome = nome.upper().strip()
-
-            # =====================================
-            # VERIFICAR DUPLICIDADE
-            # =====================================
-
-            existe = (
-                supabase
-                .table("concur_materias")
-                .select("*")
-                .eq("nome", nome)
-                .execute()
-            )
-
-            if existe.data:
-
-                st.warning(
-                    "Matéria já cadastrada."
-                )
-
-                return
-
-            # =====================================
-            # INSERT
-            # =====================================
-
-            (
-                supabase
-                .table("concur_materias")
-                .insert({
-                    "nome": nome
-                })
-                .execute()
-            )
-
-            st.success(
-                "Matéria cadastrada!"
-            )
-
-            st.rerun()
-
-        except Exception as e:
-
-            st.error(str(e))
-
-    # ==================================================
-    # LISTA
-    # ==================================================
-
-    st.divider()
-
-    st.subheader(
-        "📋 Matérias cadastradas"
-    )
+    # ==========================================
+    # BUSCAR DADOS
+    # ==========================================
 
     response = (
         supabase
@@ -110,207 +20,215 @@ def tela_cadastro_materia():
 
     materias = response.data
 
-    # ==================================================
-    # SEM DADOS
-    # ==================================================
+    # ==========================================
+    # MÉTRICAS
+    # ==========================================
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.metric(
+            "Total de matérias",
+            len(materias)
+        )
+
+    with col2:
+        st.metric(
+            "Status",
+            "Ativo"
+        )
+
+    # ==========================================
+    # NOVA MATÉRIA
+    # ==========================================
+
+    with st.expander("➕ Nova matéria"):
+
+        with st.form("nova_materia"):
+
+            nome = st.text_input(
+                "Nome da matéria"
+            )
+
+            salvar = st.form_submit_button(
+                "Salvar"
+            )
+
+        if salvar:
+
+            nome = nome.upper().strip()
+
+            if nome:
+
+                existe = (
+                    supabase
+                    .table("concur_materias")
+                    .select("*")
+                    .eq("nome", nome)
+                    .execute()
+                )
+
+                if existe.data:
+
+                    st.warning(
+                        "Matéria já existe."
+                    )
+
+                else:
+
+                    (
+                        supabase
+                        .table("concur_materias")
+                        .insert({
+                            "nome": nome
+                        })
+                        .execute()
+                    )
+
+                    st.success(
+                        "Matéria cadastrada!"
+                    )
+
+                    st.rerun()
+
+    st.divider()
+
+    # ==========================================
+    # BUSCA
+    # ==========================================
+
+    busca = st.text_input(
+        "🔍 Buscar matéria"
+    )
+
+    if busca:
+
+        materias = [
+
+            m for m in materias
+
+            if busca.upper()
+            in m["nome"].upper()
+        ]
+
+    # ==========================================
+    # LISTA
+    # ==========================================
 
     if not materias:
 
         st.info(
-            "Nenhuma matéria cadastrada."
+            "Nenhuma matéria encontrada."
         )
 
         return
 
-    # ==================================================
-    # LOOP
-    # ==================================================
-
     for materia in materias:
 
-        with st.container():
+        with st.container(border=True):
 
             col1, col2, col3 = st.columns(
-                [8, 2, 2]
+                [6, 2, 2]
             )
 
-            # =====================================
+            # ==========================
             # NOME
-            # =====================================
+            # ==========================
 
             with col1:
 
-                novo_nome = st.text_input(
-
-                    f"Matéria {materia['id']}",
-
-                    value=materia["nome"],
-
-                    key=f"materia_{materia['id']}"
+                st.subheader(
+                    f"📘 {materia['nome']}"
                 )
 
-            # =====================================
+            # ==========================
             # EDITAR
-            # =====================================
+            # ==========================
 
             with col2:
 
-                st.write("")
-
                 if st.button(
-
-                    "💾 Salvar",
-
-                    key=f"save_materia_{materia['id']}"
+                    "✏️ Editar",
+                    key=f"edit_{materia['id']}"
                 ):
 
-                    try:
+                    st.session_state[
+                        "editar_id"
+                    ] = materia["id"]
 
-                        novo_nome = (
-                            novo_nome
-                            .upper()
-                            .strip()
-                        )
-
-                        if not novo_nome:
-
-                            st.warning(
-                                "Nome inválido."
-                            )
-
-                            st.stop()
-
-                        # =========================
-                        # VERIFICAR DUPLICIDADE
-                        # =========================
-
-                        existe = (
-                            supabase
-                            .table(
-                                "concur_materias"
-                            )
-                            .select("*")
-                            .eq(
-                                "nome",
-                                novo_nome
-                            )
-                            .neq(
-                                "id",
-                                materia["id"]
-                            )
-                            .execute()
-                        )
-
-                        if existe.data:
-
-                            st.warning(
-                                "Já existe uma matéria com esse nome."
-                            )
-
-                            st.stop()
-
-                        # =========================
-                        # UPDATE
-                        # =========================
-
-                        (
-                            supabase
-                            .table(
-                                "concur_materias"
-                            )
-                            .update({
-
-                                "nome":
-                                    novo_nome
-                            })
-                            .eq(
-                                "id",
-                                materia["id"]
-                            )
-                            .execute()
-                        )
-
-                        st.success(
-                            "Matéria atualizada!"
-                        )
-
-                        st.rerun()
-
-                    except Exception as e:
-
-                        st.error(str(e))
-
-            # =====================================
-            # DELETE
-            # =====================================
+            # ==========================
+            # EXCLUIR
+            # ==========================
 
             with col3:
 
-                st.write("")
+                if st.button(
+                    "🗑️ Excluir",
+                    key=f"delete_{materia['id']}"
+                ):
+
+                    (
+                        supabase
+                        .table("concur_materias")
+                        .delete()
+                        .eq(
+                            "id",
+                            materia["id"]
+                        )
+                        .execute()
+                    )
+
+                    st.success(
+                        "Excluído!"
+                    )
+
+                    st.rerun()
+
+            # ==========================
+            # ÁREA DE EDIÇÃO
+            # ==========================
+
+            if st.session_state.get(
+                "editar_id"
+            ) == materia["id"]:
+
+                novo_nome = st.text_input(
+
+                    "Novo nome",
+
+                    value=materia["nome"],
+
+                    key=f"novo_{materia['id']}"
+                )
 
                 if st.button(
 
-                    "🗑️ Excluir",
+                    "💾 Salvar alteração",
 
-                    key=f"delete_materia_{materia['id']}"
+                    key=f"save_{materia['id']}"
                 ):
 
-                    try:
+                    (
+                        supabase
+                        .table("concur_materias")
+                        .update({
 
-                        # =========================
-                        # VERIFICAR ASSUNTOS
-                        # =========================
-
-                        assuntos = (
-
-                            supabase
-                            .table(
-                                "concur_assuntos"
-                            )
-                            .select("id")
-                            .eq(
-                                "materia_id",
-                                materia["id"]
-                            )
-                            .execute()
+                            "nome":
+                                novo_nome.upper()
+                        })
+                        .eq(
+                            "id",
+                            materia["id"]
                         )
+                        .execute()
+                    )
 
-                        if assuntos.data:
+                    st.success(
+                        "Atualizado!"
+                    )
 
-                            st.warning(
+                    st.session_state[
+                        "editar_id"
+                    ] = None
 
-                                "Não é possível excluir "
-                                "essa matéria porque "
-                                "existem assuntos vinculados."
-                            )
-
-                            st.stop()
-
-                        # =========================
-                        # DELETE
-                        # =========================
-
-                        (
-                            supabase
-                            .table(
-                                "concur_materias"
-                            )
-                            .delete()
-                            .eq(
-                                "id",
-                                materia["id"]
-                            )
-                            .execute()
-                        )
-
-                        st.success(
-                            "Matéria excluída!"
-                        )
-
-                        st.rerun()
-
-                    except Exception as e:
-
-                        st.error(str(e))
-
-            st.divider()
+                    st.rerun()
