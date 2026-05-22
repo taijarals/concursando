@@ -1,29 +1,13 @@
 import streamlit as st
 
-from telas.cadastro_materia import (
-    tela_cadastro_materia
-)
-
-from telas.cadastro_assunto import (
-    tela_cadastro_assunto
-)
-
-from telas.cadastro_banca import (
-    tela_cadastro_banca
-)
-
-from telas.cadastro_questao import (
-    tela_cadastro
-)
-
-from telas.cadastrar_questoes_via_ia import (
-    tela_cadastrar_questoes_via_ia
-)
-
-from telas.cadastrar_questoes_via_pdf import (
-    tela_cadastrar_questoes_via_pdf
-)
-
+from telas.cadastro_materia import tela_cadastro_materia
+from telas.cadastro_assunto import tela_cadastro_assunto
+from telas.cadastro_banca import tela_cadastro_banca
+from telas.cadastro_questao import tela_cadastro
+from telas.cadastrar_questoes_via_ia import tela_cadastrar_questoes_via_ia
+from telas.cadastrar_questoes_via_pdf import tela_cadastrar_questoes_via_pdf
+from telas.tela_listar_questoes_pdf import tela_cadastrar_questoes_via_pdf
+from telas.cadastro import tela_listar_questoes
 
 def tela_cadastros():
 
@@ -35,7 +19,8 @@ def tela_cadastros():
         aba_banca,
         aba_questao_manual,
         aba_questao_ia,
-        aba_questao_pdf
+        aba_questao_pdf,
+        aba_listar_questoes
 
     ) = st.tabs([
 
@@ -45,6 +30,7 @@ def tela_cadastros():
         "✍️ Questões Manual",
         "🤖 Questões IA",
         "📄 Questões PDF"
+        "📄 Listar Questões"
     ])
 
     # =====================================
@@ -94,3 +80,6 @@ def tela_cadastros():
     with aba_questao_pdf:
 
         tela_cadastrar_questoes_via_pdf()
+
+    with aba_listar_questoes:
+        tela_listar_questoes()
