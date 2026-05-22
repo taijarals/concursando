@@ -6,7 +6,6 @@ from telas.cadastro_banca import tela_cadastro_banca
 from telas.cadastro_questao import tela_cadastro
 from telas.cadastrar_questoes_via_ia import tela_cadastrar_questoes_via_ia
 from telas.cadastrar_questoes_via_pdf import tela_cadastrar_questoes_via_pdf
-from telas.tela_listar_questoes_pdf import tela_cadastrar_questoes_via_pdf
 from telas.cadastro import tela_listar_questoes
 
 def tela_cadastros():
