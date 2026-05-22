@@ -29,7 +29,7 @@ def tela_cadastros():
         "🏛️ Bancas",
         "✍️ Questões Manual",
         "🤖 Questões IA",
-        "📄 Questões PDF"
+        "📄 Questões PDF",
         "📄 Listar Questões"
     ])
 
