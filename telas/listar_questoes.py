@@ -45,7 +45,7 @@ def tela_listar_questoes():
     alternativas = alternativas_response.data
 
     # ==================================================
-    # AGRUPAR ALTERNATIVAS POR QUESTÃO
+    # AGRUPAR ALTERNATIVAS
     # ==================================================
 
     alternativas_por_questao = {}
@@ -55,25 +55,32 @@ def tela_listar_questoes():
         questao_id = alt["questao_id"]
 
         if questao_id not in alternativas_por_questao:
-            alternativas_por_questao[questao_id] = []
 
-        alternativas_por_questao[questao_id].append(alt)
+            alternativas_por_questao[
+                questao_id
+            ] = []
+
+        alternativas_por_questao[
+            questao_id
+        ].append(alt)
 
     # ==================================================
-    # TRANSFORMAR EM DATAFRAME
+    # DATAFRAME
     # ==================================================
 
     dados = []
 
     for q in questoes:
 
-        enunciado_preview = (
+        preview = (
             q["enunciado"][:120] + "..."
             if len(q["enunciado"]) > 120
             else q["enunciado"]
         )
 
         dados.append({
+
+            "Selecionar": False,
 
             "ID": q["id"],
 
@@ -99,7 +106,7 @@ def tela_listar_questoes():
 
             "Dificuldade": q["dificuldade"],
 
-            "Questão": enunciado_preview
+            "Questão": preview
         })
 
     df = pd.DataFrame(dados)
@@ -115,7 +122,7 @@ def tela_listar_questoes():
     with col1:
 
         busca = st.text_input(
-            "Buscar texto"
+            "Buscar questão"
         )
 
     with col2:
@@ -199,7 +206,7 @@ def tela_listar_questoes():
     with col1:
 
         st.metric(
-            "Total Questões",
+            "Questões",
             len(df)
         )
 
@@ -220,49 +227,160 @@ def tela_listar_questoes():
     st.divider()
 
     # ==================================================
-    # TABELA
+    # SELECIONAR TODOS
     # ==================================================
 
-    st.subheader("📋 Lista de Questões")
-
-    if len(df) == 0:
-
-        st.warning(
-            "Nenhuma questão encontrada."
-        )
-
-        return
-
-    questao_selecionada = st.selectbox(
-        "Selecione uma questão",
-        df["ID"].tolist(),
-        format_func=lambda x: (
-            f"#{x} - "
-            f"{df[df['ID'] == x]['Matéria'].iloc[0]} - "
-            f"{df[df['ID'] == x]['Questão'].iloc[0][:60]}"
-        )
+    selecionar_todos = st.checkbox(
+        "Selecionar todas as questões"
     )
 
-    st.dataframe(
+    if selecionar_todos:
+
+        df["Selecionar"] = True
+
+    # ==================================================
+    # TABELA EDITÁVEL
+    # ==================================================
+
+    st.subheader("📋 Questões")
+
+    edited_df = st.data_editor(
+
         df,
+
+        hide_index=True,
+
         use_container_width=True,
-        hide_index=True
+
+        disabled=[
+            "ID",
+            "Tipo",
+            "Matéria",
+            "Assunto",
+            "Banca",
+            "Dificuldade",
+            "Questão"
+        ],
+
+        column_config={
+
+            "Selecionar": st.column_config.CheckboxColumn(
+                "Selecionar"
+            ),
+
+            "Questão": st.column_config.TextColumn(
+                "Questão",
+                width="large"
+            )
+        }
     )
+
+    # ==================================================
+    # QUESTÕES SELECIONADAS
+    # ==================================================
+
+    selecionadas = edited_df[
+        edited_df["Selecionar"] == True
+    ]
+
+    ids_selecionados = (
+        selecionadas["ID"]
+        .tolist()
+    )
+
+    # ==================================================
+    # AÇÕES EM MASSA
+    # ==================================================
 
     st.divider()
 
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.info(
+            f"{len(ids_selecionados)} "
+            f"questão(ões) selecionada(s)"
+        )
+
+    with col2:
+
+        if st.button(
+            "🗑️ Excluir Selecionadas",
+            use_container_width=True,
+            disabled=len(ids_selecionados) == 0
+        ):
+
+            try:
+
+                # ==================================
+                # EXCLUIR ALTERNATIVAS
+                # ==================================
+
+                (
+                    supabase
+                    .table(
+                        "concur_alternativas"
+                    )
+                    .delete()
+                    .in_(
+                        "questao_id",
+                        ids_selecionados
+                    )
+                    .execute()
+                )
+
+                # ==================================
+                # EXCLUIR QUESTÕES
+                # ==================================
+
+                (
+                    supabase
+                    .table(
+                        "concur_questoes"
+                    )
+                    .delete()
+                    .in_(
+                        "id",
+                        ids_selecionados
+                    )
+                    .execute()
+                )
+
+                st.success(
+                    f"{len(ids_selecionados)} "
+                    f"questão(ões) excluída(s)!"
+                )
+
+                st.rerun()
+
+            except Exception as e:
+
+                st.error(str(e))
+
     # ==================================================
-    # DETALHES DA QUESTÃO
+    # VISUALIZAR QUESTÃO
     # ==================================================
+
+    st.divider()
+
+    st.subheader("📖 Visualizar Questão")
+
+    lista_ids = edited_df["ID"].tolist()
+
+    questao_id = st.selectbox(
+        "Selecione uma questão",
+        lista_ids
+    )
 
     questao = next(
         q for q in questoes
-        if q["id"] == questao_selecionada
+        if q["id"] == questao_id
     )
 
-    st.subheader(
-        f"📖 Questão #{questao['id']}"
-    )
+    # ==================================================
+    # INFORMAÇÕES
+    # ==================================================
 
     col1, col2 = st.columns(2)
 
@@ -348,30 +466,36 @@ def tela_listar_questoes():
         st.divider()
 
         with st.expander(
-            "🤖 Explicação IA",
-            expanded=False
+            "🤖 Explicação IA"
         ):
 
             st.write(
                 questao["explicacao_ia"]
             )
 
+    # ==================================================
+    # AÇÕES INDIVIDUAIS
+    # ==================================================
+
     st.divider()
 
-    # ==================================================
-    # AÇÕES
-    # ==================================================
-
     col1, col2 = st.columns(2)
-
-    # ==================================================
-    # EXCLUIR
-    # ==================================================
 
     with col1:
 
         if st.button(
-            "🗑️ Excluir Questão",
+            "✏️ Editar Questão",
+            use_container_width=True
+        ):
+
+            st.info(
+                "Tela de edição ainda será criada."
+            )
+
+    with col2:
+
+        if st.button(
+            "🗑️ Excluir Esta Questão",
             use_container_width=True
         ):
 
@@ -404,7 +528,7 @@ def tela_listar_questoes():
                 )
 
                 st.success(
-                    "Questão excluída com sucesso!"
+                    "Questão excluída!"
                 )
 
                 st.rerun()
@@ -412,18 +536,3 @@ def tela_listar_questoes():
             except Exception as e:
 
                 st.error(str(e))
-
-    # ==================================================
-    # EDITAR
-    # ==================================================
-
-    with col2:
-
-        if st.button(
-            "✏️ Editar Questão",
-            use_container_width=True
-        ):
-
-            st.info(
-                "Tela de edição ainda será criada."
-            )
