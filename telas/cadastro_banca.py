@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 
 from database.supabase_client import supabase
 
@@ -9,16 +10,18 @@ from database.supabase_client import supabase
 
 def tela_cadastro_banca():
 
-    #st.title("🏛️ Cadastro de Bancas")
+    st.title("🏛️ Cadastro de Bancas")
 
     # ==================================================
-    # FORMULÁRIO
+    # NOVA BANCA
     # ==================================================
+
+    st.subheader("➕ Nova Banca")
 
     with st.form("form_banca"):
 
         nome = st.text_input(
-            "Nome da Banca"
+            "Nome da banca"
         )
 
         salvar = st.form_submit_button(
@@ -31,45 +34,44 @@ def tela_cadastro_banca():
 
     if salvar:
 
-        if not nome:
-
-            st.warning(
-                "Informe o nome."
-            )
-
-            return
-
         try:
-
-            # =====================================
-            # CAIXA ALTA
-            # =====================================
 
             nome = nome.upper().strip()
 
-            # =====================================
-            # VERIFICAR DUPLICIDADE
-            # =====================================
+            if not nome:
+
+                st.warning(
+                    "Informe o nome."
+                )
+
+                st.stop()
+
+            # ==========================================
+            # DUPLICIDADE
+            # ==========================================
 
             existe = (
                 supabase
                 .table("concur_bancas")
-                .select("*")
-                .eq("nome", nome)
+                .select("id")
+                .eq(
+                    "nome",
+                    nome
+                )
                 .execute()
             )
 
             if existe.data:
 
                 st.warning(
-                    "Banca já cadastrada."
+                    "Essa banca já existe."
                 )
 
-                return
+                st.stop()
 
-            # =====================================
+            # ==========================================
             # INSERT
-            # =====================================
+            # ==========================================
 
             (
                 supabase
@@ -90,15 +92,11 @@ def tela_cadastro_banca():
 
             st.error(str(e))
 
-    # ==================================================
-    # LISTA
-    # ==================================================
-
     st.divider()
 
-    st.subheader(
-        "📋 Bancas cadastradas"
-    )
+    # ==================================================
+    # BUSCAR BANCAS
+    # ==================================================
 
     response = (
         supabase
@@ -123,195 +121,374 @@ def tela_cadastro_banca():
         return
 
     # ==================================================
-    # LOOP
+    # CONTAR QUESTÕES
     # ==================================================
+
+    questoes_response = (
+        supabase
+        .table("concur_questoes")
+        .select("id, banca_id")
+        .execute()
+    )
+
+    questoes = questoes_response.data
+
+    contagem_questoes = {}
+
+    for q in questoes:
+
+        banca_id = q["banca_id"]
+
+        if banca_id not in contagem_questoes:
+
+            contagem_questoes[
+                banca_id
+            ] = 0
+
+        contagem_questoes[
+            banca_id
+        ] += 1
+
+    # ==================================================
+    # DATAFRAME
+    # ==================================================
+
+    dados = []
 
     for banca in bancas:
 
-        with st.container():
+        dados.append({
 
-            col1, col2, col3 = st.columns(
-                [8, 2, 2]
+            "Selecionar": False,
+
+            "ID": banca["id"],
+
+            "Banca": banca["nome"],
+
+            "Questões": contagem_questoes.get(
+                banca["id"],
+                0
             )
+        })
 
-            # =====================================
-            # NOME
-            # =====================================
+    df_original = pd.DataFrame(dados)
 
-            with col1:
+    df = df_original.copy()
 
-                novo_nome = st.text_input(
+    # ==================================================
+    # FILTROS
+    # ==================================================
 
-                    f"Banca {banca['id']}",
+    st.subheader("🔎 Filtros")
 
-                    value=banca["nome"],
+    busca = st.text_input(
+        "Buscar banca"
+    )
 
-                    key=f"banca_{banca['id']}"
+    # ==================================================
+    # APLICAR FILTRO
+    # ==================================================
+
+    if busca:
+
+        df = df[
+            df["Banca"]
+            .str
+            .contains(
+                busca,
+                case=False,
+                na=False
+            )
+        ]
+
+    # ==================================================
+    # KPIs
+    # ==================================================
+
+    st.divider()
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.metric(
+            "Bancas",
+            len(df)
+        )
+
+    with col2:
+
+        st.metric(
+            "Questões Vinculadas",
+            df["Questões"].sum()
+        )
+
+    st.divider()
+
+    # ==================================================
+    # SELECIONAR TODOS
+    # ==================================================
+
+    selecionar_todos = st.checkbox(
+        "Selecionar todas"
+    )
+
+    if selecionar_todos:
+
+        df["Selecionar"] = True
+
+    # ==================================================
+    # TABELA EDITÁVEL
+    # ==================================================
+
+    st.subheader(
+        "📋 Bancas Cadastradas"
+    )
+
+    edited_df = st.data_editor(
+
+        df,
+
+        hide_index=True,
+
+        use_container_width=True,
+
+        num_rows="fixed",
+
+        column_config={
+
+            "Selecionar": st.column_config.CheckboxColumn(
+                "Selecionar"
+            ),
+
+            "ID": st.column_config.NumberColumn(
+                "ID",
+                disabled=True
+            ),
+
+            "Banca": st.column_config.TextColumn(
+                "Banca",
+                required=True
+            ),
+
+            "Questões": st.column_config.NumberColumn(
+                "Questões",
+                disabled=True
+            )
+        },
+
+        disabled=[
+            "ID",
+            "Questões"
+        ]
+    )
+
+    # ==================================================
+    # SELECIONADOS
+    # ==================================================
+
+    selecionados = edited_df[
+        edited_df["Selecionar"] == True
+    ]
+
+    ids_selecionados = (
+        selecionados["ID"]
+        .tolist()
+    )
+
+    st.divider()
+
+    # ==================================================
+    # AÇÕES
+    # ==================================================
+
+    col1, col2 = st.columns(2)
+
+    # ==================================================
+    # SALVAR ALTERAÇÕES
+    # ==================================================
+
+    with col1:
+
+        if st.button(
+            "💾 Salvar Alterações",
+            use_container_width=True
+        ):
+
+            try:
+
+                atualizados = 0
+
+                for _, linha_editada in edited_df.iterrows():
+
+                    id_banca = linha_editada["ID"]
+
+                    linha_original = (
+                        df_original[
+                            df_original["ID"]
+                            == id_banca
+                        ]
+                        .iloc[0]
+                    )
+
+                    mudou = (
+                        linha_editada["Banca"]
+                        != linha_original["Banca"]
+                    )
+
+                    if not mudou:
+
+                        continue
+
+                    novo_nome = (
+                        linha_editada["Banca"]
+                        .upper()
+                        .strip()
+                    )
+
+                    if not novo_nome:
+
+                        continue
+
+                    # ==============================
+                    # DUPLICIDADE
+                    # ==============================
+
+                    existe = (
+                        supabase
+                        .table("concur_bancas")
+                        .select("id")
+                        .eq(
+                            "nome",
+                            novo_nome
+                        )
+                        .neq(
+                            "id",
+                            id_banca
+                        )
+                        .execute()
+                    )
+
+                    if existe.data:
+
+                        st.warning(
+                            f"A banca "
+                            f"{novo_nome} "
+                            f"já existe."
+                        )
+
+                        continue
+
+                    # ==============================
+                    # UPDATE
+                    # ==============================
+
+                    (
+                        supabase
+                        .table("concur_bancas")
+                        .update({
+
+                            "nome":
+                                novo_nome
+                        })
+                        .eq(
+                            "id",
+                            id_banca
+                        )
+                        .execute()
+                    )
+
+                    atualizados += 1
+
+                st.success(
+                    f"{atualizados} "
+                    f"banca(s) atualizada(s)!"
                 )
 
-            # =====================================
-            # EDITAR
-            # =====================================
+                st.rerun()
 
-            with col2:
+            except Exception as e:
 
-                st.write("")
-                st.write("")
+                st.error(str(e))
 
-                if st.button(
+    # ==================================================
+    # EXCLUIR SELECIONADOS
+    # ==================================================
 
-                    "💾 Salvar",
+    with col2:
 
-                    key=f"save_banca_{banca['id']}"
-                ):
+        if st.button(
+            "🗑️ Excluir Selecionados",
+            use_container_width=True,
+            disabled=len(ids_selecionados) == 0
+        ):
 
-                    try:
+            try:
 
-                        novo_nome = (
-                            novo_nome
-                            .upper()
-                            .strip()
+                bloqueados = []
+
+                permitidos = []
+
+                # ======================================
+                # VALIDAR VÍNCULOS
+                # ======================================
+
+                for banca_id in ids_selecionados:
+
+                    qtd = contagem_questoes.get(
+                        banca_id,
+                        0
+                    )
+
+                    if qtd > 0:
+
+                        bloqueados.append(
+                            banca_id
                         )
 
-                        if not novo_nome:
+                    else:
 
-                            st.warning(
-                                "Nome inválido."
-                            )
-
-                            st.stop()
-
-                        # =========================
-                        # VERIFICAR DUPLICIDADE
-                        # =========================
-
-                        existe = (
-                            supabase
-                            .table(
-                                "concur_bancas"
-                            )
-                            .select("*")
-                            .eq(
-                                "nome",
-                                novo_nome
-                            )
-                            .neq(
-                                "id",
-                                banca["id"]
-                            )
-                            .execute()
+                        permitidos.append(
+                            banca_id
                         )
 
-                        if existe.data:
+                # ======================================
+                # BLOQUEADOS
+                # ======================================
 
-                            st.warning(
-                                "Já existe uma banca com esse nome."
-                            )
+                if bloqueados:
 
-                            st.stop()
+                    st.warning(
+                        f"{len(bloqueados)} "
+                        f"banca(s) não puderam "
+                        f"ser excluídas porque "
+                        f"possuem questões vinculadas."
+                    )
 
-                        # =========================
-                        # UPDATE
-                        # =========================
+                # ======================================
+                # DELETE
+                # ======================================
 
-                        (
-                            supabase
-                            .table(
-                                "concur_bancas"
-                            )
-                            .update({
+                if permitidos:
 
-                                "nome":
-                                    novo_nome
-                            })
-                            .eq(
-                                "id",
-                                banca["id"]
-                            )
-                            .execute()
+                    (
+                        supabase
+                        .table("concur_bancas")
+                        .delete()
+                        .in_(
+                            "id",
+                            permitidos
                         )
+                        .execute()
+                    )
 
-                        st.success(
-                            "Banca atualizada!"
-                        )
+                    st.success(
+                        f"{len(permitidos)} "
+                        f"banca(s) excluída(s)!"
+                    )
 
-                        st.rerun()
+                    st.rerun()
 
-                    except Exception as e:
+            except Exception as e:
 
-                        st.error(str(e))
-
-            # =====================================
-            # DELETE
-            # =====================================
-
-            with col3:
-
-                st.write("")
-                st.write("")
-
-                if st.button(
-
-                    "🗑️ Excluir",
-
-                    key=f"delete_banca_{banca['id']}"
-                ):
-
-                    try:
-
-                        # =========================
-                        # VERIFICAR QUESTÕES
-                        # =========================
-
-                        questoes = (
-                            supabase
-                            .table(
-                                "concur_questoes"
-                            )
-                            .select("id")
-                            .eq(
-                                "banca_id",
-                                banca["id"]
-                            )
-                            .execute()
-                        )
-
-                        if questoes.data:
-
-                            st.warning(
-
-                                "Não é possível excluir "
-                                "essa banca porque "
-                                "existem questões vinculadas."
-                            )
-
-                            st.stop()
-
-                        # =========================
-                        # DELETE
-                        # =========================
-
-                        (
-                            supabase
-                            .table(
-                                "concur_bancas"
-                            )
-                            .delete()
-                            .eq(
-                                "id",
-                                banca["id"]
-                            )
-                            .execute()
-                        )
-
-                        st.success(
-                            "Banca excluída!"
-                        )
-
-                        st.rerun()
-
-                    except Exception as e:
-
-                        st.error(str(e))
-
-            st.divider()
+                st.error(str(e))
