@@ -6,7 +6,13 @@ from datetime import datetime
 
 from openai import OpenAI
 
-from config import OPENROUTER_API_KEY
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
+
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 
 # ==================================================
