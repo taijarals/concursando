@@ -2,537 +2,336 @@ import streamlit as st
 import pandas as pd
 
 from database.supabase_client import supabase
+from utils.logger import get_logger
 
-
-# ==================================================
-# LISTAR QUESTÕES
-# ==================================================
+logger = get_logger(__name__)
 
 def tela_listar_questoes():
-
+    """Display and manage questions."""
     st.title("📚 Banco de Questões")
 
-    # ==================================================
-    # BUSCAR QUESTÕES
-    # ==================================================
-
-    response = (
-        supabase
-        .table("concur_questoes")
-        .select("""
-            *,
-            concur_materias(nome),
-            concur_assuntos(nome),
-            concur_bancas(nome)
-        """)
-        .order("id", desc=True)
-        .execute()
-    )
-
-    questoes = response.data
-
-    # ==================================================
-    # BUSCAR TODAS AS ALTERNATIVAS
-    # ==================================================
-
-    alternativas_response = (
-        supabase
-        .table("concur_alternativas")
-        .select("*")
-        .execute()
-    )
-
-    alternativas = alternativas_response.data
-
-    # ==================================================
-    # AGRUPAR ALTERNATIVAS
-    # ==================================================
-
-    alternativas_por_questao = {}
-
-    for alt in alternativas:
-
-        questao_id = alt["questao_id"]
-
-        if questao_id not in alternativas_por_questao:
-
-            alternativas_por_questao[
-                questao_id
-            ] = []
-
-        alternativas_por_questao[
-            questao_id
-        ].append(alt)
-
-    # ==================================================
-    # DATAFRAME
-    # ==================================================
-
-    dados = []
-
-    for q in questoes:
-
-        preview = (
-            q["enunciado"][:120] + "..."
-            if len(q["enunciado"]) > 120
-            else q["enunciado"]
+    try:
+        # Fetch questions from database
+        response = (
+            supabase
+            .table("concur_questoes")
+            .select("""
+                *,
+                concur_materias(nome),
+                concur_assuntos(nome),
+                concur_bancas(nome)
+            """)
+            .order("id", desc=True)
+            .execute()
         )
 
-        dados.append({
+        questoes = response.data
 
-            "Selecionar": False,
+        if not questoes:
+            st.info("📚 Nenhuma questão cadastrada ainda. Comece criando uma nova questão!")
+            return
 
-            "ID": q["id"],
-
-            "Tipo": q["tipo"],
-
-            "Matéria": (
-                q["concur_materias"]["nome"]
-                if q["concur_materias"]
-                else "-"
-            ),
-
-            "Assunto": (
-                q["concur_assuntos"]["nome"]
-                if q["concur_assuntos"]
-                else "-"
-            ),
-
-            "Banca": (
-                q["concur_bancas"]["nome"]
-                if q["concur_bancas"]
-                else "-"
-            ),
-
-            "Dificuldade": q["dificuldade"],
-
-            "Questão": preview
-        })
-
-    df = pd.DataFrame(dados)
-
-    # ==================================================
-    # FILTROS
-    # ==================================================
-
-    st.subheader("🔎 Filtros")
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-
-        busca = st.text_input(
-            "Buscar questão"
+        # Fetch alternatives
+        alternativas_response = (
+            supabase
+            .table("concur_alternativas")
+            .select("*")
+            .execute()
         )
 
-    with col2:
+        alternativas = alternativas_response.data
 
-        materias = sorted(
-            df["Matéria"].dropna().unique()
-        )
+        # Group alternatives by question
+        alternativas_por_questao = {}
 
-        filtro_materia = st.selectbox(
-            "Matéria",
-            ["Todas"] + materias
-        )
+        for alt in alternativas:
+            questao_id = alt["questao_id"]
 
-    with col3:
+            if questao_id not in alternativas_por_questao:
+                alternativas_por_questao[questao_id] = []
 
-        bancas = sorted(
-            df["Banca"].dropna().unique()
-        )
+            alternativas_por_questao[questao_id].append(alt)
 
-        filtro_banca = st.selectbox(
-            "Banca",
-            ["Todas"] + bancas
-        )
+        # Create DataFrame
+        dados = []
 
-    with col4:
-
-        dificuldades = sorted(
-            df["Dificuldade"].dropna().unique()
-        )
-
-        filtro_dificuldade = st.selectbox(
-            "Dificuldade",
-            ["Todas"] + dificuldades
-        )
-
-    # ==================================================
-    # APLICAR FILTROS
-    # ==================================================
-
-    if busca:
-
-        df = df[
-            df["Questão"]
-            .str
-            .contains(
-                busca,
-                case=False,
-                na=False
+        for q in questoes:
+            preview = (
+                q["enunciado"][:120] + "..."
+                if len(q["enunciado"]) > 120
+                else q["enunciado"]
             )
-        ]
 
-    if filtro_materia != "Todas":
+            dados.append({
+                "Selecionar": False,
+                "ID": q["id"],
+                "Tipo": q["tipo"],
+                "Matéria": (
+                    q["concur_materias"]["nome"]
+                    if q["concur_materias"]
+                    else "-"
+                ),
+                "Assunto": (
+                    q["concur_assuntos"]["nome"]
+                    if q["concur_assuntos"]
+                    else "-"
+                ),
+                "Banca": (
+                    q["concur_bancas"]["nome"]
+                    if q["concur_bancas"]
+                    else "-"
+                ),
+                "Dificuldade": q["dificuldade"],
+                "Questão": preview
+            })
 
-        df = df[
-            df["Matéria"]
-            == filtro_materia
-        ]
+        df = pd.DataFrame(dados)
 
-    if filtro_banca != "Todas":
+        # Filters
+        st.subheader("🔎 Filtros")
 
-        df = df[
-            df["Banca"]
-            == filtro_banca
-        ]
+        col1, col2, col3, col4 = st.columns(4)
 
-    if filtro_dificuldade != "Todas":
+        with col1:
+            busca = st.text_input("Buscar questão")
 
-        df = df[
-            df["Dificuldade"]
-            == filtro_dificuldade
-        ]
-
-    # ==================================================
-    # KPIs
-    # ==================================================
-
-    st.divider()
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-
-        st.metric(
-            "Questões",
-            len(df)
-        )
-
-    with col2:
-
-        st.metric(
-            "Matérias",
-            df["Matéria"].nunique()
-        )
-
-    with col3:
-
-        st.metric(
-            "Bancas",
-            df["Banca"].nunique()
-        )
-
-    st.divider()
-
-    # ==================================================
-    # SELECIONAR TODOS
-    # ==================================================
-
-    selecionar_todos = st.checkbox(
-        "Selecionar todas as questões"
-    )
-
-    if selecionar_todos:
-
-        df["Selecionar"] = True
-
-    # ==================================================
-    # TABELA EDITÁVEL
-    # ==================================================
-
-    st.subheader("📋 Questões")
-
-    edited_df = st.data_editor(
-
-        df,
-
-        hide_index=True,
-
-        use_container_width=True,
-
-        disabled=[
-            "ID",
-            "Tipo",
-            "Matéria",
-            "Assunto",
-            "Banca",
-            "Dificuldade",
-            "Questão"
-        ],
-
-        column_config={
-
-            "Selecionar": st.column_config.CheckboxColumn(
-                "Selecionar"
-            ),
-
-            "Questão": st.column_config.TextColumn(
-                "Questão",
-                width="large"
+        with col2:
+            # Safe filter - check if column has data
+            materias_unique = df["Matéria"].dropna().unique()
+            materias = sorted(materias_unique) if len(materias_unique) > 0 else []
+            
+            filtro_materia = st.selectbox(
+                "Matéria",
+                ["Todas"] + materias
             )
-        }
-    )
 
-    # ==================================================
-    # QUESTÕES SELECIONADAS
-    # ==================================================
+        with col3:
+            bancas_unique = df["Banca"].dropna().unique()
+            bancas = sorted(bancas_unique) if len(bancas_unique) > 0 else []
+            
+            filtro_banca = st.selectbox(
+                "Banca",
+                ["Todas"] + bancas
+            )
 
-    selecionadas = edited_df[
-        edited_df["Selecionar"] == True
-    ]
+        with col4:
+            dificuldades_unique = df["Dificuldade"].dropna().unique()
+            dificuldades = sorted(dificuldades_unique) if len(dificuldades_unique) > 0 else []
+            
+            filtro_dificuldade = st.selectbox(
+                "Dificuldade",
+                ["Todas"] + dificuldades
+            )
 
-    ids_selecionados = (
-        selecionadas["ID"]
-        .tolist()
-    )
-
-    # ==================================================
-    # AÇÕES EM MASSA
-    # ==================================================
-
-    st.divider()
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        st.info(
-            f"{len(ids_selecionados)} "
-            f"questão(ões) selecionada(s)"
-        )
-
-    with col2:
-
-        if st.button(
-            "🗑️ Excluir Selecionadas",
-            use_container_width=True,
-            disabled=len(ids_selecionados) == 0
-        ):
-
-            try:
-
-                # ==================================
-                # EXCLUIR ALTERNATIVAS
-                # ==================================
-
-                (
-                    supabase
-                    .table(
-                        "concur_alternativas"
-                    )
-                    .delete()
-                    .in_(
-                        "questao_id",
-                        ids_selecionados
-                    )
-                    .execute()
+        # Apply filters
+        if busca:
+            df = df[
+                df["Questão"]
+                .str
+                .contains(
+                    busca,
+                    case=False,
+                    na=False
                 )
+            ]
 
-                # ==================================
-                # EXCLUIR QUESTÕES
-                # ==================================
+        if filtro_materia != "Todas":
+            df = df[df["Matéria"] == filtro_materia]
 
-                (
-                    supabase
-                    .table(
-                        "concur_questoes"
-                    )
-                    .delete()
-                    .in_(
-                        "id",
-                        ids_selecionados
-                    )
-                    .execute()
-                )
+        if filtro_banca != "Todas":
+            df = df[df["Banca"] == filtro_banca]
 
-                st.success(
-                    f"{len(ids_selecionados)} "
-                    f"questão(ões) excluída(s)!"
-                )
+        if filtro_dificuldade != "Todas":
+            df = df[df["Dificuldade"] == filtro_dificuldade]
 
-                st.rerun()
+        # KPIs
+        st.divider()
 
-            except Exception as e:
+        col1, col2, col3 = st.columns(3)
 
-                st.error(str(e))
+        with col1:
+            st.metric("Questões", len(df))
 
-    # ==================================================
-    # VISUALIZAR QUESTÃO
-    # ==================================================
+        with col2:
+            st.metric("Matérias", df["Matéria"].nunique())
 
-    st.divider()
-
-    st.subheader("📖 Visualizar Questão")
-
-    lista_ids = edited_df["ID"].tolist()
-
-    questao_id = st.selectbox(
-        "Selecione uma questão",
-        lista_ids
-    )
-
-    questao = next(
-        q for q in questoes
-        if q["id"] == questao_id
-    )
-
-    # ==================================================
-    # INFORMAÇÕES
-    # ==================================================
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        st.write(
-            f"**Matéria:** "
-            f"{questao['concur_materias']['nome']}"
-        )
-
-        st.write(
-            f"**Assunto:** "
-            f"{questao['concur_assuntos']['nome']}"
-        )
-
-    with col2:
-
-        st.write(
-            f"**Banca:** "
-            f"{questao['concur_bancas']['nome']}"
-        )
-
-        st.write(
-            f"**Dificuldade:** "
-            f"{questao['dificuldade']}"
-        )
-
-    st.divider()
-
-    # ==================================================
-    # ENUNCIADO
-    # ==================================================
-
-    st.markdown(
-        questao["enunciado"]
-    )
-
-    st.divider()
-
-    # ==================================================
-    # ALTERNATIVAS
-    # ==================================================
-
-    if questao["tipo"] == "multipla_escolha":
-
-        alts = alternativas_por_questao.get(
-            questao["id"],
-            []
-        )
-
-        alts = sorted(
-            alts,
-            key=lambda x: x["letra"]
-        )
-
-        for alt in alts:
-
-            emoji = (
-                "✅"
-                if alt["correta"]
-                else "▪️"
-            )
-
-            st.write(
-                f"{emoji} "
-                f"**{alt['letra']})** "
-                f"{alt['texto']}"
-            )
-
-    else:
-
-        st.success(
-            f"Resposta correta: "
-            f"{questao['resposta_correta']}"
-        )
-
-    # ==================================================
-    # EXPLICAÇÃO IA
-    # ==================================================
-
-    if questao["explicacao_ia"]:
+        with col3:
+            st.metric("Bancas", df["Banca"].nunique())
 
         st.divider()
 
-        with st.expander(
-            "🤖 Explicação IA"
-        ):
+        # Select all
+        selecionar_todos = st.checkbox("Selecionar todas as questões")
 
+        if selecionar_todos:
+            df["Selecionar"] = True
+
+        # Editable table
+        st.subheader("📋 Questões")
+
+        edited_df = st.data_editor(
+            df,
+            hide_index=True,
+            use_container_width=True,
+            disabled=[
+                "ID",
+                "Tipo",
+                "Matéria",
+                "Assunto",
+                "Banca",
+                "Dificuldade",
+                "Questão"
+            ],
+            column_config={
+                "Selecionar": st.column_config.CheckboxColumn("Selecionar"),
+                "Questão": st.column_config.TextColumn("Questão", width="large")
+            }
+        )
+
+        # Selected questions
+        selecionadas = edited_df[edited_df["Selecionar"] == True]
+        ids_selecionados = selecionadas["ID"].tolist()
+
+        # Bulk actions
+        st.divider()
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.info(f"{len(ids_selecionados)} questão(ões) selecionada(s)")
+
+        with col2:
+            if st.button(
+                "🗑️ Excluir Selecionadas",
+                use_container_width=True,
+                disabled=len(ids_selecionados) == 0
+            ):
+                try:
+                    # Delete alternatives
+                    (
+                        supabase
+                        .table("concur_alternativas")
+                        .delete()
+                        .in_("questao_id", ids_selecionados)
+                        .execute()
+                    )
+
+                    # Delete questions
+                    (
+                        supabase
+                        .table("concur_questoes")
+                        .delete()
+                        .in_("id", ids_selecionados)
+                        .execute()
+                    )
+
+                    st.success(f"{len(ids_selecionados)} questão(ões) excluída(s)!")
+                    st.rerun()
+
+                except Exception as e:
+                    logger.error(f"Error deleting questions: {str(e)}")
+                    st.error(f"Erro ao excluir: {str(e)}")
+
+        # View question
+        st.divider()
+
+        st.subheader("📖 Visualizar Questão")
+
+        lista_ids = edited_df["ID"].tolist()
+
+        if not lista_ids:
+            st.warning("Nenhuma questão para visualizar após os filtros.")
+            return
+
+        questao_id = st.selectbox("Selecione uma questão", lista_ids)
+
+        try:
+            questao = next(q for q in questoes if q["id"] == questao_id)
+        except StopIteration:
+            st.error("Questão não encontrada.")
+            return
+
+        # Display question information
+        col1, col2 = st.columns(2)
+
+        with col1:
             st.write(
-                questao["explicacao_ia"]
+                f"**Matéria:** "
+                f"{questao['concur_materias']['nome'] if questao['concur_materias'] else '-'}"
+            )
+            st.write(
+                f"**Assunto:** "
+                f"{questao['concur_assuntos']['nome'] if questao['concur_assuntos'] else '-'}"
             )
 
-    # ==================================================
-    # AÇÕES INDIVIDUAIS
-    # ==================================================
-
-    st.divider()
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        if st.button(
-            "✏️ Editar Questão",
-            use_container_width=True
-        ):
-
-            st.info(
-                "Tela de edição ainda será criada."
+        with col2:
+            st.write(
+                f"**Banca:** "
+                f"{questao['concur_bancas']['nome'] if questao['concur_bancas'] else '-'}"
             )
+            st.write(f"**Dificuldade:** {questao['dificuldade']}")
 
-    with col2:
+        st.divider()
 
-        if st.button(
-            "🗑️ Excluir Esta Questão",
-            use_container_width=True
-        ):
+        # Display enunciation
+        st.markdown(questao["enunciado"])
 
-            try:
+        st.divider()
 
-                (
-                    supabase
-                    .table(
-                        "concur_alternativas"
+        # Display alternatives
+        if questao["tipo"] == "multipla_escolha":
+            alts = alternativas_por_questao.get(questao["id"], [])
+            alts = sorted(alts, key=lambda x: x["letra"])
+
+            for alt in alts:
+                emoji = "✅" if alt["correta"] else "▪️"
+                st.write(f"{emoji} **{alt['letra']})** {alt['texto']}")
+
+        else:
+            st.success(f"Resposta correta: {questao['resposta_correta']}")
+
+        # AI explanation
+        if questao.get("explicacao_ia"):
+            st.divider()
+
+            with st.expander("🤖 Explicação IA"):
+                st.write(questao["explicacao_ia"])
+
+        # Individual actions
+        st.divider()
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if st.button("✏️ Editar Questão", use_container_width=True):
+                st.info("Tela de edição ainda será criada.")
+
+        with col2:
+            if st.button("🗑️ Excluir Esta Questão", use_container_width=True):
+                try:
+                    (
+                        supabase
+                        .table("concur_alternativas")
+                        .delete()
+                        .eq("questao_id", questao["id"])
+                        .execute()
                     )
-                    .delete()
-                    .eq(
-                        "questao_id",
-                        questao["id"]
+
+                    (
+                        supabase
+                        .table("concur_questoes")
+                        .delete()
+                        .eq("id", questao["id"])
+                        .execute()
                     )
-                    .execute()
-                )
 
-                (
-                    supabase
-                    .table(
-                        "concur_questoes"
-                    )
-                    .delete()
-                    .eq(
-                        "id",
-                        questao["id"]
-                    )
-                    .execute()
-                )
+                    st.success("Questão excluída!")
+                    st.rerun()
 
-                st.success(
-                    "Questão excluída!"
-                )
+                except Exception as e:
+                    logger.error(f"Error deleting question: {str(e)}")
+                    st.error(f"Erro ao excluir: {str(e)}")
 
-                st.rerun()
-
-            except Exception as e:
-
-                st.error(str(e))
+    except Exception as e:
+        logger.error(f"Error in listar_questoes: {str(e)}")
+        st.error(f"Erro ao carregar questões: {str(e)}")
