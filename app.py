@@ -52,6 +52,3 @@ else:
 
     elif menu == "Resolver Questões":
         tela_resolver()
-    
-    elif menu == "Listar Questões":
-        tela_listar_questoes()
