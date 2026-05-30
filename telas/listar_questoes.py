@@ -172,7 +172,7 @@ def tela_listar_questoes():
         edited_df = st.data_editor(
             df,
             hide_index=True,
-            use_container_width=True,
+            width='stretch,
             disabled=[
                 "ID",
                 "Tipo",
