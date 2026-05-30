@@ -313,7 +313,8 @@ def tela_cadastro_banca():
 
         if st.button(
             "💾 Salvar Alterações",
-            use_container_width=True
+            use_container_width=True,
+            key="salvar_alteracoes_banca"
         ):
 
             try:
