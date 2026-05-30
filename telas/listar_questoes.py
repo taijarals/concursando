@@ -203,7 +203,7 @@ def tela_listar_questoes():
         with col2:
             if st.button(
                 "🗑️ Excluir Selecionadas",
-                use_container_width=True,
+                width='stretch',
                 disabled=len(ids_selecionados) == 0
             ):
                 try:
@@ -303,11 +303,11 @@ def tela_listar_questoes():
         col1, col2 = st.columns(2)
 
         with col1:
-            if st.button("✏️ Editar Questão", use_container_width=True):
+            if st.button("✏️ Editar Questão", width='stretch'):
                 st.info("Tela de edição ainda será criada.")
 
         with col2:
-            if st.button("🗑️ Excluir Esta Questão", use_container_width=True):
+            if st.button("🗑️ Excluir Esta Questão", width='stretch'):
                 try:
                     (
                         supabase
