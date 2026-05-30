@@ -292,7 +292,7 @@ def tela_cadastro_materia():
 
         hide_index=True,
 
-        width='stretch,
+        width='stretch',
 
         num_rows="fixed",
 
@@ -359,7 +359,8 @@ def tela_cadastro_materia():
 
         if st.button(
             "💾 Salvar Alterações",
-            width='stretch
+            width='stretch',
+            key="btn_salvar_alteracoes_materia"
         ):
 
             try:
@@ -466,8 +467,9 @@ def tela_cadastro_materia():
 
         if st.button(
             "🗑️ Excluir Selecionadas",
-            width='stretch,
-            disabled=len(ids_selecionados) == 0
+            width='stretch',
+            disabled=len(ids_selecionados) == 0,
+            key="btn_excluir_selecionadas_materia"
         ):
 
             try:

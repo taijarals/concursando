@@ -363,7 +363,7 @@ def tela_cadastro_assunto():
 
         hide_index=True,
 
-        width='stretch,
+        width='stretch',
 
         num_rows="fixed",
 
@@ -432,7 +432,7 @@ def tela_cadastro_assunto():
 
         if st.button(
             "💾 Salvar Alterações",
-            width='stretch,
+            width='stretch',
             key="salvar_alteracoes_assunto"
         ):
 
@@ -557,8 +557,9 @@ def tela_cadastro_assunto():
 
         if st.button(
             "🗑️ Excluir Selecionados",
-            width='stretch,
-            disabled=len(ids_selecionados) == 0
+            width='stretch',
+            disabled=len(ids_selecionados) == 0,
+            key="excluir_selecionados_assunto"
         ):
 
             try:
