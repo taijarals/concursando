@@ -230,7 +230,8 @@ def tela_cadastro_banca():
     # ==================================================
 
     selecionar_todos = st.checkbox(
-        "Selecionar todas"
+        "Selecionar todas",
+        key="selecionar_todas_bancas"
     )
 
     if selecionar_todos:
