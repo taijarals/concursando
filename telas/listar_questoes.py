@@ -172,7 +172,7 @@ def tela_listar_questoes():
         edited_df = st.data_editor(
             df,
             hide_index=True,
-            width='stretch,
+            width='stretch',
             disabled=[
                 "ID",
                 "Tipo",
@@ -204,7 +204,8 @@ def tela_listar_questoes():
             if st.button(
                 "🗑️ Excluir Selecionadas",
                 width='stretch',
-                disabled=len(ids_selecionados) == 0
+                disabled=len(ids_selecionados) == 0,
+                key="btn_excluir_selecionadas_questoes"
             ):
                 try:
                     # Delete alternatives
@@ -303,11 +304,11 @@ def tela_listar_questoes():
         col1, col2 = st.columns(2)
 
         with col1:
-            if st.button("✏️ Editar Questão", width='stretch'):
+            if st.button("✏️ Editar Questão", width='stretch', key="btn_editar_questao_individual"):
                 st.info("Tela de edição ainda será criada.")
 
         with col2:
-            if st.button("🗑️ Excluir Esta Questão", width='stretch'):
+            if st.button("🗑️ Excluir Esta Questão", width='stretch', key="btn_excluir_questao_individual"):
                 try:
                     (
                         supabase
