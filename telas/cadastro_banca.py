@@ -422,7 +422,8 @@ def tela_cadastro_banca():
         if st.button(
             "🗑️ Excluir Selecionados",
             use_container_width=True,
-            disabled=len(ids_selecionados) == 0
+            disabled=len(ids_selecionados) == 0,
+            key="excluir_selecionados_banca"
         ):
 
             try:
