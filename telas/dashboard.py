@@ -355,7 +355,7 @@ def tela_dashboard():
         fig_mat.update_layout(xaxis=dict(range=[0, 100]))
         fig_mat.update_traces(textposition='inside', insidetextanchor='end')
         fig_mat.update_coloraxes(showscale=False)
-        st.plotly_chart(aplicar_tema_grafico(fig_mat), use_container_width=True)
+        st.plotly_chart(aplicar_tema_grafico(fig_mat), width='stretch')
 
     with col_g2:
         # Gráfico 2: Evolução Temporal
@@ -385,7 +385,7 @@ def tela_dashboard():
             title="Evolução Diária de Estudos",
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
-        st.plotly_chart(aplicar_tema_grafico(fig_evo), use_container_width=True)
+        st.plotly_chart(aplicar_tema_grafico(fig_evo), width='stretch')
 
     # Segunda fileira de gráficos
     col_g3, col_g4 = st.columns(2)
@@ -403,7 +403,7 @@ def tela_dashboard():
         )
         fig_ban.update_traces(textinfo="percent+label", textposition="inside")
         fig_ban.update_layout(showlegend=False)
-        st.plotly_chart(aplicar_tema_grafico(fig_ban), use_container_width=True)
+        st.plotly_chart(aplicar_tema_grafico(fig_ban), width='stretch')
 
     with col_g4:
         # Gráfico 4: Taxa de Acertos e Erros por Dificuldade
@@ -423,7 +423,7 @@ def tela_dashboard():
             labels={"dificuldade": "Dificuldade (1-5)", "Quantidade": "Qtd Questões"},
             title="Acertos vs Erros por Dificuldade"
         )
-        st.plotly_chart(aplicar_tema_grafico(fig_dif), use_container_width=True)
+        st.plotly_chart(aplicar_tema_grafico(fig_dif), width='stretch')
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -497,6 +497,6 @@ def tela_dashboard():
     # Exibir no Streamlit
     st.dataframe(
         recentes_view,
-        use_container_width=True,
+        width='stretch',
         hide_index=True
     )
