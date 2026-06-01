@@ -151,6 +151,24 @@ def buscar_alternativas(questao_id):
 
     return response.data or []
 
+def salvar_resolucao(
+    user_id,
+    questao_id,
+    resposta_usuario,
+    acertou
+):
+    return (
+        supabase
+        .table("concur_resolucoes")
+        .insert({
+            "user_id": user_id,
+            "questao_id": questao_id,
+            "resposta_usuario": str(resposta_usuario),
+            "acertou": acertou
+        })
+        .execute()
+    )
+
 
 def obter_indice_questao(questoes):
     if "resolver_indice" not in st.session_state:
@@ -391,6 +409,22 @@ def tela_resolver():
                     resposta_usuario,
                     alternativas
                 )
+
+                try:
+                    user = st.session_state.get("user")
+
+                    if user:
+                        salvar_resolucao(
+                            user_id=user.id,
+                            questao_id=questao["id"],
+                            resposta_usuario=resposta_usuario,
+                            acertou=acertou
+                        )
+
+                except Exception as e:
+                    st.error(
+                        f"Erro ao salvar resolução: {e}"
+                    )
 
                 st.session_state["resolver_corrigida"] = True
                 st.session_state["resolver_resposta_usuario"] = resposta_usuario
