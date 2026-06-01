@@ -10,6 +10,7 @@ from telas.cadastrar_questoes_via_ia import tela_cadastrar_questoes_via_ia
 from telas.listar_questoes import tela_listar_questoes
 from telas.cadastro import tela_cadastros
 from telas.cadastrar_questoes_via_pdf import tela_cadastrar_questoes_via_pdf
+from telas.simulados import tela_simulados
 
 
 st.set_page_config(
