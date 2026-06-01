@@ -1,8 +1,11 @@
 import unicodedata
+import random
 
 import streamlit as st
 
+from datetime import datetime
 from database.supabase_client import supabase
+
 
 
 def normalizar_texto(texto):
@@ -127,6 +130,18 @@ def buscar_questoes(
 
     questoes = response.data or []
 
+    nenhum_filtro = (
+    not materia_id
+    and not assunto_id
+    and not banca_id
+    and tipo == "Todos"
+    and dificuldade == "Todas"
+    and not busca
+)
+
+    if nenhum_filtro:
+        random.shuffle(questoes)
+
     if busca:
         busca = busca.strip().lower()
 
@@ -193,9 +208,40 @@ def avancar_questao(total_questoes):
 def tela_resolver():
     st.title("📝 Resolver Questões")
 
+    if "sessao_inicio" not in st.session_state:
+        st.session_state["sessao_inicio"] = datetime.now()
+
+    if "sessao_estudo" not in st.session_state:
+        st.session_state["sessao_estudo"] = {
+            "respondidas": 0,
+            "acertos": 0,
+            "erros": 0
+        }
+
     st.write(
         "Use os filtros abaixo para escolher uma questão, "
         "responda e confira o gabarito."
+    )
+
+    stats = st.session_state["sessao_estudo"]
+
+    st.caption(
+        f"Respondidas: {stats['respondidas']} | "
+        f"Acertos: {stats['acertos']} | "
+        f"Erros: {stats['erros']}"
+    )
+
+    tempo_decorrido = (
+        datetime.now()
+        - st.session_state["sessao_inicio"]
+    )
+
+    minutos = int(
+        tempo_decorrido.total_seconds() // 60
+    )
+
+    st.info(
+        f"⏱️ Tempo da sessão: {minutos} minutos"
     )
 
     try:
@@ -420,6 +466,13 @@ def tela_resolver():
                             resposta_usuario=resposta_usuario,
                             acertou=acertou
                         )
+
+                        st.session_state["sessao_estudo"]["respondidas"] += 1
+
+                        if acertou:
+                            st.session_state["sessao_estudo"]["acertos"] += 1
+                        else:
+                            st.session_state["sessao_estudo"]["erros"] += 1
 
                 except Exception as e:
                     st.error(
