@@ -46,6 +46,21 @@ def resetar_resolucao():
     st.session_state.pop("resolver_resposta_usuario", None)
     st.session_state.pop("resolver_corrigida", None)
 
+def resetar_sessao_estudo():
+
+    chaves = [
+        "resolver_indice",
+        "resolver_resultado",
+        "resolver_resposta_usuario",
+        "resolver_corrigida",
+        "sessao_inicio",
+        "sessao_estudo",
+        "questoes_embaralhadas"
+    ]
+
+    for chave in chaves:
+        st.session_state.pop(chave, None)
+
 
 def corrigir_questao(questao, resposta_usuario, alternativas):
     tipo = questao.get("tipo")
@@ -443,7 +458,7 @@ def tela_resolver():
             key=f"resposta_{questao['id']}"
         )
 
-    col_corrigir, col_proxima = st.columns(2)
+    col_corrigir, col_proxima, col_reset = st.columns(3)
 
     with col_corrigir:
         if st.button("✅ Corrigir"):
@@ -489,6 +504,17 @@ def tela_resolver():
     with col_proxima:
         if st.button("➡️ Próxima questão"):
             avancar_questao(len(questoes))
+            st.rerun()
+
+    with col_reset:
+        if st.button("🔄 Nova Sessão"):
+
+            resetar_sessao_estudo()
+
+            st.success(
+                "Sessão reiniciada com sucesso!"
+            )
+
             st.rerun()
 
     if st.session_state.get("resolver_corrigida"):
