@@ -218,6 +218,15 @@ def aplicar_tema_grafico(fig):
     )
     return fig
 
+def apagar_historico_usuario(user_id):
+    return (
+        supabase
+        .table("concur_resolucoes")
+        .delete()
+        .eq("user_id", user_id)
+        .execute()
+    )
+
 
 # ==============================================================================
 # TELA PRINCIPAL DO DASHBOARD
@@ -234,6 +243,29 @@ def tela_dashboard():
     if not user:
         st.warning("Usuário não autenticado. Por favor, faça login.")
         return
+
+    with st.expander("⚠️ Zona de Perigo"):
+        
+        confirmar = st.checkbox(
+            "Confirmo que desejo apagar todo meu histórico"
+        )
+
+        if confirmar:
+            if st.button("🗑️ Apagar Histórico"):
+                
+                try:
+                    apagar_historico_usuario(user.id)
+
+                    st.success(
+                        "Histórico apagado com sucesso!"
+                    )
+
+                    st.rerun()
+
+                except Exception as e:
+                    st.error(
+                        f"Erro ao apagar histórico: {e}"
+                    )
 
     # Buscar dados no banco
     resolucoes = buscar_resolucoes(user.id)
