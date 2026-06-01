@@ -14,7 +14,8 @@ def render_sidebar():
             [
                 "Dashboard",
                 "Cadastros",
-                "Resolver Questões"
+                "Resolver Questões",
+                "Simulados"
             ]
         )
 

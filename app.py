@@ -52,3 +52,6 @@ else:
 
     elif menu == "Resolver Questões":
         tela_resolver()
+    
+    elif menu == "Simulados":
+        tela_simulados()
