@@ -571,3 +571,72 @@ def pesquisar_questoes(
     # ==================================================
 
     return questoes_validas
+
+# ==================================================
+# GERAR EXPLICAÇÃO DE QUESTÃO EXISTENTE
+# ==================================================
+
+def gerar_explicacao_questao(
+    questao,
+    alternativas
+):
+
+    prompt = f"""
+Você é um professor especialista em concursos públicos.
+
+Analise a questão abaixo.
+
+ENUNCIADO:
+{questao["enunciado"]}
+
+GABARITO:
+{questao["resposta_correta"]}
+
+ALTERNATIVAS:
+{json.dumps(alternativas, ensure_ascii=False)}
+
+Retorne APENAS JSON válido.
+
+Formato:
+
+{{
+    "explicacao_ia":"texto longo",
+    "comentario":"texto longo"
+}}
+
+REGRAS:
+
+- explique porque o gabarito está correto
+- explique os erros das alternativas incorretas
+- escreva no mínimo 300 caracteres na explicação
+- escreva no mínimo 150 caracteres no comentário
+- não use markdown
+- não use ```json
+- retorne somente JSON
+"""
+
+    response = client.chat.completions.create(
+        model="google/gemma-4-31b-it:free",
+        messages=[
+            {
+                "role": "system",
+                "content": "Você responde apenas JSON válido."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        temperature=0.2
+    )
+
+    texto = (
+        response
+        .choices[0]
+        .message
+        .content
+    )
+
+    texto = limpar_texto(texto)
+
+    return json.loads(texto)

@@ -15,7 +15,8 @@ def render_sidebar():
                 "Dashboard",
                 "Cadastros",
                 "Resolver Questões",
-                "Simulados"
+                "Simulados",
+                "Gerar Explicações IA"
             ]
         )
 

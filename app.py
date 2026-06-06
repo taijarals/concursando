@@ -11,6 +11,7 @@ from telas.listar_questoes import tela_listar_questoes
 from telas.cadastro import tela_cadastros
 from telas.cadastrar_questoes_via_pdf import tela_cadastrar_questoes_via_pdf
 from telas.simulados import tela_simulados
+from telas.gerar_explicacoes_ia import tela_gerar_explicacoes_ia
 
 
 st.set_page_config(
@@ -56,3 +57,6 @@ else:
     
     elif menu == "Simulados":
         tela_simulados()
+
+    elif tela == "Gerar Explicações IA":
+        tela_gerar_explicacoes_ia()
