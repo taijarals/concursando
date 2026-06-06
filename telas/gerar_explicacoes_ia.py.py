@@ -2,9 +2,7 @@ import streamlit as st
 
 from database.supabase_client import supabase
 
-from services.openrouter_service import (
-    gerar_explicacao_questao
-)
+from services.openrouter_service import gerar_explicacao_questao
 
 
 def tela_gerar_explicacoes_ia():
